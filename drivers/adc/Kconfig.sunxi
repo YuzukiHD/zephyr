@@ -1,0 +1,20 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config ADC_SUNXI
+	bool "Allwinner sunxi GPADC"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_GPADC_ENABLED
+	help
+	  Enable the polling ADC driver for the Allwinner sunxi GPADC.
+
+config ADC_SUNXI_INIT_PRIORITY
+	int "Allwinner sunxi GPADC init priority"
+	default 82
+
+config ADC_SUNXI_READ_TIMEOUT_US
+	int "Allwinner sunxi GPADC conversion timeout"
+	default 10000
+	range 100 1000000
+	help
+	  Maximum time to wait for one conversion result.

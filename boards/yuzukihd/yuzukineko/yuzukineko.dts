@@ -130,3 +130,7 @@
 	pinctrl-0 = <&pwm0_pins>;
 	pinctrl-names = "default";
 };
+
+&adc {
+	status = "okay";
+};

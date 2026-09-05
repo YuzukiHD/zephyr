@@ -205,6 +205,18 @@
 			status = "disabled";
 		};
 
+		adc: adc@2009000 {
+			compatible = "allwinner,sunxi-gpadc";
+			#io-channel-cells = <1>;
+			reg = <0x02009000 0x200>;
+			channels = <12>;
+			vref-mv = <1800>;
+			sample-rate = <1000>;
+			clocks = <&cctl CLK_BUS_GPADC>;
+			resets = <&rctl RST_BUS_GPADC>;
+			status = "disabled";
+		};
+
 		uart0: serial@2500000 {
 			compatible = "ns16550", "snps,dw-apb-uart";
 			reg = <0x02500000 0x400>;

@@ -1,0 +1,42 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner sunxi GPADC controller
+
+compatible: "allwinner,sunxi-gpadc"
+
+include: [adc-controller.yaml, base.yaml, reset-device.yaml]
+
+properties:
+  reg:
+    required: true
+
+  clocks:
+    required: true
+
+  resets:
+    required: true
+
+  channels:
+    type: int
+    const: 12
+
+  vref-mv:
+    type: int
+    const: 1800
+
+  sample-rate:
+    type: int
+    default: 1000
+    description: ADC conversion rate in samples per second.
+
+  read-timeout-us:
+    type: int
+    default: 10000
+    description: Maximum time to wait for one conversion result.
+
+  "#io-channel-cells":
+    const: 1
+
+io-channel-cells:
+  - input
