@@ -1,0 +1,15 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+identifier: yuzukineko
+name: YuzukiHD YuzukiNeko
+type: mcu
+arch: riscv
+toolchain:
+  - cross-compile
+  - zephyr
+ram: 16384
+flash: 0
+supported:
+  - serial
+vendor: yuzukihd

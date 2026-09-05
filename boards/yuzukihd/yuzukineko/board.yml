@@ -1,0 +1,9 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+board:
+  name: yuzukineko
+  full_name: YuzukiHD YuzukiNeko
+  vendor: yuzukihd
+  socs:
+  - name: sun252i_f101

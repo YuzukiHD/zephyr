@@ -1,0 +1,37 @@
+/*
+ * Copyright (c) 2026 Yuzuki Tsuru
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/dts-v1/;
+
+#include <allwinner/sun252i_f101.dtsi>
+
+/ {
+	model = "YuzukiHD YuzukiNeko";
+	compatible = "yuzukihd,yuzukineko";
+
+	chosen {
+		zephyr,console = &uart1;
+		zephyr,shell-uart = &uart1;
+		zephyr,sram = &sram0;
+	};
+};
+
+/* UART1 console on PB00 (TX) / PB01 (RX), muxsel 4 */
+&pio {
+	uart1_pins: uart1_pins {
+		uart1_tx_rx {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 0, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 1, 4)>;
+		};
+	};
+};
+
+&uart1 {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart1_pins>;
+	pinctrl-names = "default";
+};
