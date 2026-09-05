@@ -1,0 +1,10 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config PINCTRL_SUNXI
+	bool "Allwinner sunxi PIO pinmux driver"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_PINCTRL_ENABLED
+	help
+	  Enable driver for the Allwinner sunxi PIO pin
+	  controller.
