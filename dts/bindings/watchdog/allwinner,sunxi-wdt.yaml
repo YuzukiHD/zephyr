@@ -1,0 +1,12 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner sunxi RISC-V watchdog
+
+compatible: "allwinner,sunxi-wdt"
+
+include: base.yaml
+
+properties:
+  reg:
+    required: true

@@ -189,6 +189,12 @@
 			interrupts-extended = <&hlic 7>;
 		};
 
+		wdt: watchdog@6011000 {
+			compatible = "allwinner,sunxi-wdt";
+			reg = <0x06011000 0x20>;
+			status = "disabled";
+		};
+
 		uart0: serial@2500000 {
 			compatible = "ns16550", "snps,dw-apb-uart";
 			reg = <0x02500000 0x400>;

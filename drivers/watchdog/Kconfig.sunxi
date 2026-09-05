@@ -1,0 +1,15 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config WDT_SUNXI
+	bool "Allwinner sunxi watchdog"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_WDT_ENABLED
+	select HAS_WDT_NO_CALLBACKS
+	select HAS_WDT_DISABLE_AT_BOOT
+	help
+	  Enable the single-channel Allwinner sunxi watchdog in SoC-reset mode.
+
+config WDT_SUNXI_INIT_PRIORITY
+	int "Allwinner sunxi watchdog init priority"
+	default 80
