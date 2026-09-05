@@ -113,3 +113,20 @@
 &wdt {
 	status = "okay";
 };
+
+&pio {
+	pwm0_pins: pwm0_pins {
+		pwm0_group {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 6, 6)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 7, 6)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 8, 6)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 3, 7)>;
+		};
+	};
+};
+
+&pwm {
+	status = "okay";
+	pinctrl-0 = <&pwm0_pins>;
+	pinctrl-names = "default";
+};

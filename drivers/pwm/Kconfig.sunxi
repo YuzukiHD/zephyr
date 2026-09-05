@@ -1,0 +1,14 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config PWM_SUNXI
+	bool "Allwinner sunxi PWM-ng controller"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_PWM_ENABLED
+	select PINCTRL
+	help
+	  Enable the Allwinner sunxi PWM-ng controller.
+
+config PWM_SUNXI_INIT_PRIORITY
+	int "Allwinner sunxi PWM init priority"
+	default 82
