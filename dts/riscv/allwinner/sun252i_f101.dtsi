@@ -361,5 +361,23 @@
 			clock-reg = <0x944>;
 			status = "disabled";
 		};
+
+		dbi: mipi-dbi@4026000 {
+			compatible = "allwinner,sunxi-dbi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x04026000 0x400>;
+			clocks = <&cctl CLK_SPI1>, <&cctl CLK_BUS_SPI1>;
+			clock-names = "mod", "bus";
+			resets = <&rctl RST_BUS_SPI1>;
+			clock-reg = <0x944>;
+			clock-frequency = <5000000>;
+			spi-dev = <&spi1>;
+			dmas = <&dma 0>;
+			dma-names = "tx";
+			cs-gpios = <&gpiod 0 GPIO_ACTIVE_LOW>;
+			reset-gpios = <&gpiod 4 GPIO_ACTIVE_LOW>;
+			status = "disabled";
+		};
 	};
 };

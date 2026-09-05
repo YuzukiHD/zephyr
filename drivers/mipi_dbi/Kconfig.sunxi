@@ -1,0 +1,21 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config MIPI_DBI_SUNXI
+	bool "Allwinner sunxi SPI DBI host"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_DBI_ENABLED
+	select DMA
+	select SPI
+	select PINCTRL
+	help
+	  Enable the Allwinner F101 DBI host implemented by the SPI1 controller.
+
+config MIPI_DBI_SUNXI_INIT_PRIORITY
+	int "Allwinner sunxi DBI init priority"
+	default 80
+
+config MIPI_DBI_SUNXI_TIMEOUT_US
+	int "Allwinner sunxi DBI transfer timeout"
+	default 100000
+	range 1000 5000000

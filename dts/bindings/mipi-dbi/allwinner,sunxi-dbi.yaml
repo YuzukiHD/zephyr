@@ -1,0 +1,56 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner sunxi DBI host controller implemented by SPI1
+
+compatible: "allwinner,sunxi-dbi"
+
+include: [mipi-dbi-controller.yaml, pinctrl-device.yaml]
+
+properties:
+  reg:
+    required: true
+
+  clocks:
+    type: phandle-array
+    required: true
+
+  resets:
+    type: phandle-array
+    required: true
+
+  clock-reg:
+    type: int
+    required: true
+    description: CCU register offset controlling the SPI module clock.
+
+  clock-frequency:
+    type: int
+    required: true
+    description: Requested DBI serial clock frequency in Hz.
+
+  spi-dev:
+    type: phandle
+    description: Compatibility phandle for MIPI DBI panel helper macros.
+
+  reset-gpios:
+    type: phandle-array
+    description: Optional GPIO used to reset the attached display panel.
+
+  cs-gpios:
+    type: phandle-array
+    description: Optional active-low GPIO used as the display CE/CS signal.
+
+  dmas:
+    type: phandle-array
+    description: Optional DMA channel used for display data transfers.
+
+  dma-names:
+    type: string-array
+    description: DMA channel names, including tx when dmas is present.
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
