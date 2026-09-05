@@ -1,0 +1,11 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config GPIO_SUNXI
+	bool "Allwinner sunxi PIO GPIO driver"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_GPIO_ENABLED
+	help
+	  Enable driver for the Allwinner sunxi PIO GPIO
+	  controller. The controller provides 6 banks (PA..PF) with 32 pins
+	  each and per-bank interrupts.
