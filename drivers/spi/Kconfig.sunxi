@@ -1,0 +1,14 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config SPI_SUNXI
+	bool "Allwinner sunxi SPI controller"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_SPI_ENABLED
+	select PINCTRL
+	help
+	  Enable the polling master-mode SPI driver for Allwinner sunxi SPI.
+
+config SPI_SUNXI_INIT_PRIORITY
+	int "Allwinner sunxi SPI init priority"
+	default 81

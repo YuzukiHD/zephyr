@@ -71,3 +71,41 @@
 	pinctrl-0 = <&twi0_pins>;
 	pinctrl-names = "default";
 };
+
+&pio {
+	spi0_pins: spi0_pins {
+		spi0_data {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PC, 0, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PC, 4, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PC, 2, 3)>;
+			bias-disable;
+		};
+		spi0_control {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PC, 1, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PC, 3, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PC, 5, 3)>;
+			bias-pull-up;
+		};
+	};
+
+	spi1_pins: spi1_pins {
+		spi1_data {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 1, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 2, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 3, 3)>;
+			bias-disable;
+		};
+		spi1_control {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 0, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 4, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 5, 3)>;
+			bias-pull-up;
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-0 = <&spi0_pins>;
+	pinctrl-names = "default";
+};
