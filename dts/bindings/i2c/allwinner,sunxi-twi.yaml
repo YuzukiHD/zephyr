@@ -1,0 +1,22 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner sunxi two-wire interface controller
+
+compatible: "allwinner,sunxi-twi"
+
+include: [i2c-controller.yaml, pinctrl-device.yaml]
+
+properties:
+  reg:
+    required: true
+
+  clocks:
+    required: true
+
+  resets:
+    type: phandle-array
+    required: true
+
+  clock-frequency:
+    required: true

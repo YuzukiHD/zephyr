@@ -254,5 +254,44 @@
 			resets = <&rctl RST_BUS_UART5>;
 			status = "disabled";
 		};
+
+		i2c0: i2c@2502000 {
+			compatible = "allwinner,sunxi-twi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x02502000 0x400>;
+			interrupts = <9 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_BUS_TWI0>;
+			resets = <&rctl RST_BUS_TWI0>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@2502400 {
+			compatible = "allwinner,sunxi-twi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x02502400 0x400>;
+			interrupts = <10 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_BUS_TWI1>;
+			resets = <&rctl RST_BUS_TWI1>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@2502800 {
+			compatible = "allwinner,sunxi-twi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x02502800 0x400>;
+			interrupts = <11 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_BUS_TWI2>;
+			resets = <&rctl RST_BUS_TWI2>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
 	};
 };

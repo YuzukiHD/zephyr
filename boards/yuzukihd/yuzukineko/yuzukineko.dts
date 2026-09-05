@@ -17,6 +17,10 @@
 		zephyr,shell-uart = &uart1;
 		zephyr,sram = &sram0;
 	};
+
+	aliases {
+		i2c-0 = &i2c0;
+	};
 };
 
 /* UART1 console on PB00 (TX) / PB01 (RX), muxsel 4 */
@@ -33,5 +37,37 @@
 	status = "okay";
 	current-speed = <115200>;
 	pinctrl-0 = <&uart1_pins>;
+	pinctrl-names = "default";
+};
+
+&pio {
+	twi0_pins: twi0_pins {
+		twi0_pins_group {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 8, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 9, 4)>;
+			bias-pull-up;
+		};
+	};
+
+	twi1_pins: twi1_pins {
+		twi1_pins_group {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 0, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 1, 3)>;
+			bias-pull-up;
+		};
+	};
+
+	twi2_pins: twi2_pins {
+		twi2_pins_group {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 10, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 11, 4)>;
+			bias-pull-up;
+		};
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	pinctrl-0 = <&twi0_pins>;
 	pinctrl-names = "default";
 };
