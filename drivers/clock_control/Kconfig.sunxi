@@ -1,0 +1,10 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config CLOCK_CONTROL_SUNXI
+	bool "Allwinner sunxi CCU bus clock driver"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_CCTL_ENABLED
+	help
+	  Enable driver for the Allwinner sunxi system CCU bus
+	  clock gates.
