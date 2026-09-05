@@ -134,3 +134,7 @@
 &adc {
 	status = "okay";
 };
+
+&dma {
+	status = "okay";
+};

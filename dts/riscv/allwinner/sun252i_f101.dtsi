@@ -205,6 +205,20 @@
 			status = "disabled";
 		};
 
+		dma: dma-controller@3002000 {
+			compatible = "allwinner,sunxi-dma";
+			reg = <0x03002000 0x1000>;
+			interrupts = <50 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_BUS_DMA>, <&cctl CLK_BUS_DMA_M>;
+			clock-names = "bus", "mbus";
+			resets = <&rctl RST_BUS_DMA>;
+			#dma-cells = <1>;
+			dma-channels = <12>;
+			dma-requests = <64>;
+			status = "disabled";
+		};
+
 		adc: adc@2009000 {
 			compatible = "allwinner,sunxi-gpadc";
 			#io-channel-cells = <1>;

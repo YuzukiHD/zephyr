@@ -1,0 +1,38 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner sunxi legacy LLI DMA controller
+
+compatible: "allwinner,sunxi-dma"
+
+include: dma-controller.yaml
+
+properties:
+  reg:
+    required: true
+
+  clocks:
+    type: phandle-array
+    required: true
+
+  clock-names:
+    type: string-array
+    required: true
+
+  resets:
+    type: phandle-array
+    required: true
+
+  dma-channels:
+    type: int
+    required: true
+
+  dma-requests:
+    type: int
+    required: true
+
+  "#dma-cells":
+    const: 1
+
+dma-cells:
+  - channel

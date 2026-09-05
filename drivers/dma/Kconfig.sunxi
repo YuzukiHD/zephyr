@@ -1,0 +1,14 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config DMA_SUNXI
+	bool "Allwinner sunxi legacy DMA"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_DMA_ENABLED
+	select CACHE_MANAGEMENT
+	help
+	  Enable the F101 12-channel LLI DMA controller.
+
+config DMA_SUNXI_INIT_PRIORITY
+	int "Allwinner sunxi DMA initialization priority"
+	default 50

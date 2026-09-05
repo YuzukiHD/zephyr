@@ -18,6 +18,12 @@ config 2ND_LVL_INTR_00_OFFSET
 config MAX_IRQ_PER_AGGREGATOR
 	default 192
 
+config ICACHE_LINE_SIZE
+	default 64
+
+config DCACHE_LINE_SIZE
+	default 64
+
 if SERIAL
 
 config UART_NS16550
