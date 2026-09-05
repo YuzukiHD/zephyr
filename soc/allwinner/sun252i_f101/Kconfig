@@ -1,0 +1,25 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_SUN252I_F101
+	bool
+	select RISCV
+	select RISCV_PRIVILEGED
+	select RISCV_HAS_PLIC
+	select RISCV_VECTORED_MODE
+	select GEN_IRQ_VECTOR_TABLE
+	select INCLUDE_RESET_VECTOR
+	select RISCV_ISA_RV32I
+	select RISCV_ISA_EXT_M
+	select RISCV_ISA_EXT_A
+	select RISCV_ISA_EXT_C
+	select RISCV_ISA_EXT_ZICSR
+	select RISCV_ISA_EXT_ZIFENCEI
+	select RISCV_ISA_EXT_XTHEADCMO
+	select CPU_HAS_ICACHE
+	select CPU_HAS_DCACHE
+	select SOC_EARLY_INIT_HOOK
+	select CACHE_MANAGEMENT
+	help
+	  Allwinner sun252i (F101) SoC, single Xuantie C907 (rv32imac) core
+	  with PLIC and CLINT, no MMU, no external DDR (internal SRAM/PSRAM only).

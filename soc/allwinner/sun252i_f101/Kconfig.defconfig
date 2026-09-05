@@ -1,0 +1,31 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+if SOC_SUN252I_F101
+
+config NUM_IRQS
+	default 204
+
+config SYS_CLOCK_HW_CYCLES_PER_SEC
+	default $(dt_node_int_prop_int,/cpus,timebase-frequency)
+
+config 2ND_LVL_ISR_TBL_OFFSET
+	default 12
+
+config 2ND_LVL_INTR_00_OFFSET
+	default 11
+
+config MAX_IRQ_PER_AGGREGATOR
+	default 192
+
+if SERIAL
+
+config UART_NS16550
+	default y
+
+config UART_NS16550_DW8250_DW_APB
+	default y
+
+endif # SERIAL
+
+endif # SOC_SUN252I_F101

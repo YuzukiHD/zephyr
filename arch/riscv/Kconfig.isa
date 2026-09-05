@@ -170,3 +170,13 @@ config RISCV_ISA_EXT_ZMMUL
 
 	  The Zmmul extension implements the multiplication subset of the M
 	  extension.
+
+config RISCV_ISA_EXT_XTHEADCMO
+	bool
+	help
+	  (xtheadcmo) - T-Head cache management operations extension
+
+	  The XuanTie (T-Head) CMO extension provides cache maintenance
+	  instructions such as th.dcache/th.icache used by XuanTie C-series
+	  cores. Enabled via the "_xtheadcmo" suffix in the toolchain -march
+	  string, which requires a XuanTie toolchain that implements it.

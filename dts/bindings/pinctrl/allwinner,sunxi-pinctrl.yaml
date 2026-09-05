@@ -1,0 +1,70 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Allwinner sunxi PIO pin controller.
+
+  Device pin configuration is placed in child nodes of this node. Each
+  child node is a pin group that contains group child nodes with a
+  'pinmux' array property where every element encodes a pin number and
+  its muxsel function:
+
+    pinmux = <ALLWINNER_PINMUX(port, pin, muxsel) ...>
+
+  See include/zephyr/dt-bindings/pinctrl/allwinner-pinctrl.h for the
+  macros. Optional 'bias-pull-up', 'bias-pull-down' and 'bias-disable'
+  properties on a group configure the pin pull resistor.
+
+  The 'allwinner,pio-hw-type' property selects the PIO register layout
+  used by the driver (see
+  include/zephyr/drivers/pinctrl/pinctrl_sunxi.h).
+
+  Example:
+
+    #include <zephyr/dt-bindings/pinctrl/allwinner-pinctrl.h>
+
+    &pio {
+      uart1_pins: uart1_pins {
+        uart1_pins_group {
+          pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PF, 0, 4)
+                    ALLWINNER_PINMUX(ALLWINNER_PIO_PF, 1, 4)>;
+        };
+      };
+    };
+
+compatible: "allwinner,sunxi-pinctrl"
+
+include: base.yaml
+
+properties:
+  reg:
+    required: true
+
+  allwinner,pio-hw-type:
+    required: true
+    type: int
+    description: |
+      PIO hardware layout type. See
+      include/zephyr/drivers/pinctrl/pinctrl_sunxi.h for the register
+      layout description of each type.
+
+child-binding:
+  description: PIO pin group node.
+  child-binding:
+    description: Pin configuration node.
+    properties:
+      pinmux:
+        required: true
+        type: array
+        description: |
+          Pin functions, one cell per pin. Each cell encodes the pin number
+          and the muxsel function.
+      bias-pull-up:
+        type: boolean
+        description: Enable internal pull-up.
+      bias-pull-down:
+        type: boolean
+        description: Enable internal pull-down.
+      bias-disable:
+        type: boolean
+        description: Disable the internal pull resistor.

@@ -1,0 +1,23 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Allwinner sunxi CCU (clock control unit) block.
+
+  The block hosts the bus clock gates and reset lines for a set of
+  peripherals. The base addresses listed in 'ccu-bases' are indexed by
+  the base index field of the clock and reset ids (see
+  include/zephyr/dt-bindings/clock/allwinner-ccu.h).
+
+compatible: "allwinner,sunxi-ccu"
+
+include: base.yaml
+
+properties:
+  ccu-bases:
+    required: true
+    type: array
+    description: |
+      CCU base addresses, indexed by the base index field of the clock
+      and reset ids. The first entry is the main CCU, followed by the
+      R_CCU, RTC_CCU, ...

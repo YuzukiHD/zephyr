@@ -89,6 +89,11 @@ if(NOT CONFIG_RISCV_ISA_EXT_M AND
   string(CONCAT riscv_march ${riscv_march} "_zmmul")
 endif()
 
+# T-Head cache management operations (vendor extension, XuanTie C-series)
+if(CONFIG_RISCV_ISA_EXT_XTHEADCMO)
+  string(CONCAT riscv_march ${riscv_march} "_xtheadcmo")
+endif()
+
 list(APPEND TOOLCHAIN_C_FLAGS -mabi=${riscv_mabi} -march=${riscv_march})
 list(APPEND TOOLCHAIN_LD_FLAGS NO_SPLIT -mabi=${riscv_mabi} -march=${riscv_march})
 

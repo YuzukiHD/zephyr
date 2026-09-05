@@ -1,0 +1,258 @@
+/*
+ * Copyright (c) 2026 Yuzuki Tsuru
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/dts-v1/;
+
+#include <freq.h>
+#include <zephyr/dt-bindings/clock/sun252i-f101-ccu.h>
+#include <zephyr/dt-bindings/pinctrl/allwinner-pinctrl.h>
+#include <zephyr/dt-bindings/gpio/gpio.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		timebase-frequency = <DT_FREQ_M(24)>;
+
+		cpu0: cpu@0 {
+			compatible = "xuantie,c907", "riscv";
+			device_type = "cpu";
+			reg = <0>;
+			riscv,isa = "rv32imac_zicsr_zifencei";
+			clock-frequency = <DT_FREQ_M(24)>;
+			d-cache-line-size = <64>;
+			i-cache-line-size = <64>;
+
+			hlic: interrupt-controller {
+				compatible = "riscv,cpu-intc";
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+			};
+		};
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+
+		/* Internal SRAM/PSRAM, code loaded here by the bootloader */
+		sram0: memory@40010000 {
+			compatible = "mmio-sram";
+			reg = <0x40010000 0xff0000>;
+		};
+
+		ccu: ccu@2001000 {
+			compatible = "allwinner,sunxi-ccu";
+			reg = <0x02001000 0x400>;
+			ccu-bases = <0x02001000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			cctl: clock-controller {
+				compatible = "allwinner,sunxi-cctl";
+				apb-uart-reg = <SUN252I_F101_CCU_APB_UART_REG>;
+				pll-peri-reg = <SUN252I_F101_CCU_PLL_PERI_REG>;
+				uart-bgr-reg = <SUN252I_F101_CCU_UART_BGR_REG>;
+				#clock-cells = <1>;
+				status = "okay";
+			};
+
+			rctl: reset-controller {
+				compatible = "allwinner,sunxi-rctl";
+				#reset-cells = <1>;
+				status = "okay";
+			};
+		};
+
+		pio: pinctrl@2000000 {
+			compatible = "allwinner,sunxi-pinctrl";
+			reg = <0x02000000 0x450>;
+			allwinner,pio-hw-type = <ALLWINNER_PIO_HW_TYPE0>;
+			status = "okay";
+		};
+
+		gpioa: gpio@2000000 {
+			compatible = "allwinner,sunxi-gpio";
+			reg = <0x02000000 0x30>;
+			allwinner,pio-hw-type = <ALLWINNER_PIO_HW_TYPE0>;
+			allwinner,bank = <0>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <32>;
+			interrupts = <67 1>;
+			interrupt-parent = <&plic>;
+			status = "okay";
+		};
+
+		gpiob: gpio@2000030 {
+			compatible = "allwinner,sunxi-gpio";
+			reg = <0x02000030 0x30>;
+			allwinner,pio-hw-type = <ALLWINNER_PIO_HW_TYPE0>;
+			allwinner,bank = <1>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <32>;
+			interrupts = <69 1>;
+			interrupt-parent = <&plic>;
+			status = "okay";
+		};
+
+		gpioc: gpio@2000060 {
+			compatible = "allwinner,sunxi-gpio";
+			reg = <0x02000060 0x30>;
+			allwinner,pio-hw-type = <ALLWINNER_PIO_HW_TYPE0>;
+			allwinner,bank = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <32>;
+			interrupts = <71 1>;
+			interrupt-parent = <&plic>;
+			status = "okay";
+		};
+
+		gpiod: gpio@2000090 {
+			compatible = "allwinner,sunxi-gpio";
+			reg = <0x02000090 0x30>;
+			allwinner,pio-hw-type = <ALLWINNER_PIO_HW_TYPE0>;
+			allwinner,bank = <3>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <32>;
+			interrupts = <73 1>;
+			interrupt-parent = <&plic>;
+			status = "okay";
+		};
+
+		gpioe: gpio@20000c0 {
+			compatible = "allwinner,sunxi-gpio";
+			reg = <0x020000c0 0x30>;
+			allwinner,pio-hw-type = <ALLWINNER_PIO_HW_TYPE0>;
+			allwinner,bank = <4>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <32>;
+			interrupts = <75 1>;
+			interrupt-parent = <&plic>;
+			status = "okay";
+		};
+
+		gpiof: gpio@20000f0 {
+			compatible = "allwinner,sunxi-gpio";
+			reg = <0x020000f0 0x30>;
+			allwinner,pio-hw-type = <ALLWINNER_PIO_HW_TYPE0>;
+			allwinner,bank = <5>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <32>;
+			interrupts = <77 1>;
+			interrupt-parent = <&plic>;
+			status = "okay";
+		};
+
+		plic: interrupt-controller@10000000 {
+			compatible = "sifive,plic-1.0.0";
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			interrupts-extended = <&hlic 11>;
+			reg = <0x10000000 0x210000>;
+			riscv,max-priority = <7>;
+			riscv,ndev = <192>;
+		};
+
+		/* C907 CLINT: MSIP at 0x14000000, mtimecmp at 0x14004000 and
+		 * mtime at 0x1400bff8. The node provides the machine-interrupt
+		 * wiring for the SMP IPIs.
+		 */
+		clint: clint@14000000 {
+			compatible = "sifive,clint0";
+			interrupts-extended = <&hlic 3 &hlic 7>;
+			reg = <0x14000000 0x10000>;
+		};
+
+		/* Standard RISC-V machine timer. The C907 exposes the mtime
+		 * counter at CLINT + 0xbff8 and mtimecmp at CLINT + 0x4000.
+		 */
+		systimer: timer@1400bff8 {
+			compatible = "riscv,machine-timer";
+			reg = <0x1400bff8 0x8>, <0x14004000 0x8>;
+			reg-names = "mtime", "mtimecmp";
+			interrupts-extended = <&hlic 7>;
+		};
+
+		uart0: serial@2500000 {
+			compatible = "ns16550", "snps,dw-apb-uart";
+			reg = <0x02500000 0x400>;
+			reg-shift = <2>;
+			interrupts = <2 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_BUS_UART0>;
+			resets = <&rctl RST_BUS_UART0>;
+			status = "disabled";
+		};
+
+		uart1: serial@2500400 {
+			compatible = "ns16550", "snps,dw-apb-uart";
+			reg = <0x02500400 0x400>;
+			reg-shift = <2>;
+			interrupts = <3 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_BUS_UART1>;
+			resets = <&rctl RST_BUS_UART1>;
+			status = "disabled";
+		};
+
+		uart2: serial@2500800 {
+			compatible = "ns16550", "snps,dw-apb-uart";
+			reg = <0x02500800 0x400>;
+			reg-shift = <2>;
+			interrupts = <4 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_BUS_UART2>;
+			resets = <&rctl RST_BUS_UART2>;
+			status = "disabled";
+		};
+
+		uart3: serial@2500c00 {
+			compatible = "ns16550", "snps,dw-apb-uart";
+			reg = <0x02500c00 0x400>;
+			reg-shift = <2>;
+			interrupts = <5 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_BUS_UART3>;
+			resets = <&rctl RST_BUS_UART3>;
+			status = "disabled";
+		};
+
+		uart4: serial@2501000 {
+			compatible = "ns16550", "snps,dw-apb-uart";
+			reg = <0x02501000 0x400>;
+			reg-shift = <2>;
+			interrupts = <6 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_BUS_UART4>;
+			resets = <&rctl RST_BUS_UART4>;
+			status = "disabled";
+		};
+
+		uart5: serial@2501400 {
+			compatible = "ns16550", "snps,dw-apb-uart";
+			reg = <0x02501400 0x400>;
+			reg-shift = <2>;
+			interrupts = <7 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_BUS_UART5>;
+			resets = <&rctl RST_BUS_UART5>;
+			status = "disabled";
+		};
+	};
+};

@@ -1,0 +1,26 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Allwinner sunxi CCU reset controller.
+
+  This binding covers the reset lines in the system CCU. The reset id
+  encodes the CCU base index, the register offset and the reset bit
+  position:
+
+    id = (base_index << 20) | (reg_offset << 8) | bit
+
+  The CCU base addresses are taken from the 'ccu-bases' property of the
+  parent CCU node. Predefined ids are available in the SoC ccu header,
+  e.g. include/zephyr/dt-bindings/clock/sun252i-f101-ccu.h.
+
+compatible: "allwinner,sunxi-rctl"
+
+include: [reset-controller.yaml, base.yaml]
+
+properties:
+  "#reset-cells":
+    const: 1
+
+reset-cells:
+  - id

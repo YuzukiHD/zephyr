@@ -1,0 +1,8 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_SUN252I_F101
+	bool
+
+config SOC
+	default "sun252i_f101" if SOC_SUN252I_F101

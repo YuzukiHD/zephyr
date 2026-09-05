@@ -1,0 +1,43 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Allwinner sunxi PIO GPIO controller.
+
+  Each DT gpio node covers one PIO bank (PA..PF), identified by the
+  'allwinner,bank' property. The 'allwinner,pio-hw-type' property selects
+  the PIO register layout used by the driver (see
+  include/zephyr/drivers/pinctrl/pinctrl_sunxi.h). Bank interrupts are
+  exposed as interrupt specifiers.
+
+compatible: "allwinner,sunxi-gpio"
+
+include: [gpio-controller.yaml, base.yaml]
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  allwinner,pio-hw-type:
+    required: true
+    type: int
+    description: |
+      PIO hardware layout type. See
+      include/zephyr/drivers/pinctrl/pinctrl_sunxi.h for the register
+      layout description of each type.
+
+  allwinner,bank:
+    required: true
+    type: int
+    description: |
+      PIO bank number of this controller (PA = 0, PB = 1, ...).
+
+  "#gpio-cells":
+    const: 2
+
+gpio-cells:
+  - pin
+  - flags

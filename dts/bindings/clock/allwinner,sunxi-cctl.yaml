@@ -1,0 +1,47 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Allwinner sunxi CCU bus clock controller.
+
+  This binding covers the bus clock gates in the system CCU. The clock id
+  encodes the CCU base index, the register offset and the gate bit
+  position:
+
+    clkid = (base_index << 20) | (reg_offset << 8) | bit
+
+  The CCU base addresses are taken from the 'ccu-bases' property of the
+  parent CCU node. Predefined ids are available in the SoC ccu header,
+  e.g. include/zephyr/dt-bindings/clock/sun252i-f101-ccu.h.
+
+  The optional 'apb-uart-reg', 'pll-peri-reg' and 'uart-bgr-reg'
+  properties enable rate reporting for the UART bus clocks: any clock
+  whose gate register offset equals 'uart-bgr-reg' is reported at the
+  APB_UART clock rate, computed from the standard sunxi APB_UART mux and
+  PLL_PERI registers in the main CCU.
+
+compatible: "allwinner,sunxi-cctl"
+
+include: [clock-controller.yaml, base.yaml]
+
+properties:
+  apb-uart-reg:
+    type: int
+    description: |
+      APB_UART mux/divider register offset in the main CCU. Enables rate
+      reporting for the UART bus clocks.
+  pll-peri-reg:
+    type: int
+    description: |
+      PLL_PERI control register offset in the main CCU.
+  uart-bgr-reg:
+    type: int
+    description: |
+      UART bus gate/reset register offset in the main CCU. Clocks in
+      this register are reported at the APB_UART clock rate.
+
+  "#clock-cells":
+    const: 1
+
+clock-cells:
+  - clkid
