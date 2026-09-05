@@ -1,0 +1,10 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config RESET_SUNXI
+	bool "Allwinner sunxi CCU reset driver"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_RCTL_ENABLED
+	help
+	  Enable driver for the Allwinner sunxi system CCU
+	  reset lines.
