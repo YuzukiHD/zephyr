@@ -20,10 +20,13 @@ CONFIG_MIPI_DBI=y
 CONFIG_SHELL=y
 CONFIG_DEBUG=y
 CONFIG_LOG=y
+# The kernel logs every mutex operation at debug level. Forcing all modules
+# to debug (LOG_OVERRIDE_LEVEL) with the shell log backend makes the log
+# output take the mutex that it is logging about, recursing until the
+# thread stack is gone. Keep the default per-module levels instead.
 CONFIG_LOG_MAX_LEVEL=4
-CONFIG_LOG_DEFAULT_LEVEL=4
-CONFIG_LOG_OVERRIDE_LEVEL=4
-CONFIG_LOG_MODE_IMMEDIATE=y
+CONFIG_LOG_DEFAULT_LEVEL=3
+CONFIG_LOG_MODE_DEFERRED=y
 CONFIG_LOG_BACKEND_UART=y
 CONFIG_LOG_PRINTK=y
 CONFIG_DEVMEM_SHELL=y

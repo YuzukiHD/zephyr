@@ -33,6 +33,15 @@ static void xuantie_cpu_init(void)
 	__asm__ volatile("csrw mip, x0" ::: "memory");
 
 	/*
+	 * Global machine interrupts must stay off until the kernel is up. A
+	 * loader that jumps here (xfel exec) can leave mstatus.MIE set; once
+	 * the PLIC driver enables MEIE, a pending peripheral interrupt (e.g.
+	 * the UART left over from the loader) would then be taken in the
+	 * middle of the kernel initialization.
+	 */
+	__asm__ volatile("csrc mstatus, %0" :: "r"(1 << 3) : "memory");
+
+	/*
 	 * Enable XuanTie ISA extensions (needed for the th.dcache/th.icache
 	 * CMO instructions) and hardware handling of misaligned accesses.
 	 */
