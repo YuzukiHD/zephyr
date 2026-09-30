@@ -1,0 +1,39 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner sunxi video engine (JPEG, PNG and H.264 decoder)
+
+compatible: "allwinner,sunxi-ve"
+
+include: base.yaml
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  clocks:
+    required: true
+
+  clock-names:
+    required: true
+
+  resets:
+    type: phandle-array
+    required: true
+
+  clock-reg:
+    type: int
+    required: true
+    description: |
+      Offset of the module clock register (source select, divider and gate)
+      in the main CCU.
+
+  sram-ctrl-reg:
+    type: int
+    required: true
+    description: |
+      Base of the system control block holding the SRAM ownership bits that
+      hand the shared SRAM to the video engine.

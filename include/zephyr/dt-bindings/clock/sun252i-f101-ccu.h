@@ -139,6 +139,12 @@
 #define RST_BUS_SMHC0			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x084c, 16)
 #define RST_BUS_SMHC2			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x084c, 18)
 
+/* Video engine: module clock, bus gate and reset in VE_BGR_REG (0x069c), memory bus gate */
+#define CLK_VE				ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0690, 31)
+#define CLK_BUS_VE			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x069c, 0)
+#define RST_BUS_VE			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x069c, 16)
+#define CLK_BUS_VE_M			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0804, 1)
+
 /* Clock / reset register offsets in the main CCU, used by the dtsi */
 #define SUN252I_F101_CCU_UART_BGR_REG	0x090c
 #define SUN252I_F101_CCU_APB_UART_REG	0x0528
