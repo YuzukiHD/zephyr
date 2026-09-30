@@ -12,5 +12,5 @@ if(CONFIG_CHERRYUSB_HOST_EHCI_CUSTOM)
     ${ZEPHYR_CHERRYUSB_MODULE_DIR}/port/ohci
   )
   zephyr_library_sources(usb_glue_sunxi_host.c
-    ${ZEPHYR_CHERRYUSB_MODULE_DIR}/port/ohci/usb_hc_ohci.c)
+    usb_hc_ohci.c)
 endif()

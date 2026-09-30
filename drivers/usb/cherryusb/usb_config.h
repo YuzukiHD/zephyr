@@ -293,7 +293,7 @@
 /* ---------------- OHCI Configuration ---------------- */
 #define CONFIG_USB_OHCI_HCOR_OFFSET (0x400)
 #define CONFIG_USB_OHCI_ED_NUM 10
-#define CONFIG_USB_OHCI_TD_NUM 3
+#define CONFIG_USB_OHCI_TD_NUM 18
 #define CONFIG_USB_OHCI_DESC_DCACHE_ENABLE
 
 /* ---------------- XHCI Configuration ---------------- */
