@@ -24,6 +24,7 @@
  * supplied buffers, no 3D pairs, no compressed or 10 bit formats).
  */
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <zephyr/kernel.h>
@@ -389,7 +390,53 @@ static struct ve_fbm_node *node_of(struct ve_fbm *fbm, struct ve_picture *pic, c
 	return &fbm->frames[index];
 }
 
-static void return_buffer_locked(struct ve_fbm *fbm, struct ve_picture *pic, int valid)
+static void return_buffer_locked(struct ve_fbm *fbm, struct ve_picture *pic, int valid,
+				 bool convert);
+
+/*
+ * The engine writes tiled (32x32 macroblock) pictures. Unless tiled output is
+ * wanted, a picture that is about to be shown is converted by the engine into
+ * a second, linear picture and that one goes to the consumer instead.
+ *
+ * Returns the converted picture (already queued for the consumer), or NULL
+ * when the picture needs no conversion or none could be made.
+ */
+static struct ve_picture *convert_for_display(struct ve_fbm *fbm, struct ve_picture *pic)
+{
+	struct ve_picture *out;
+
+	pic->output_mb32 = 0;
+	if (pic->pixel_format != VE_PIX_YUV_MB32_420 && pic->pixel_format != VE_PIX_NV12) {
+		return NULL;
+	}
+
+	out = request_buffer_locked(fbm);
+	if (out == NULL) {
+		LOG_WRN("no spare picture for the conversion, showing the tiled picture");
+		return NULL;
+	}
+	out->pts = pic->pts;
+	out->pixel_format = VE_PIX_NV12;
+	out->aspect_ratio = pic->aspect_ratio;
+	out->width = pic->width;
+	out->height = pic->height;
+	out->left_offset = pic->left_offset;
+	out->top_offset = pic->top_offset;
+	out->right_offset = pic->right_offset;
+	out->bottom_offset = pic->bottom_offset;
+
+	if (VideoEngineConvert(fbm->ve_ops, fbm->ve_ops_self, pic, out) != 0) {
+		LOG_ERR("picture conversion failed");
+		return_buffer_locked(fbm, out, 0, false);
+		return NULL;
+	}
+	return_buffer_locked(fbm, out, 1, false);
+
+	return out;
+}
+
+static void return_buffer_locked(struct ve_fbm *fbm, struct ve_picture *pic, int valid,
+				 bool convert)
 {
 	struct ve_fbm_node *node = node_of(fbm, pic, "FbmReturnBuffer");
 
@@ -414,10 +461,15 @@ static void return_buffer_locked(struct ve_fbm *fbm, struct ve_picture *pic, int
 		node->flag.already_displayed = 0;
 		make_empty(fbm, node);
 	} else if (valid) {
-		node_enqueue(&fbm->valid_queue, node);
-		fbm->valid_picture_num++;
-		fbm->wait_for_disp_num++;
-		node->flag.in_valid_picture_queue = 1;
+		if (convert && convert_for_display(fbm, pic) != NULL) {
+			/* the converted copy is what the consumer gets, this one is free again */
+			make_empty(fbm, node);
+		} else {
+			node_enqueue(&fbm->valid_queue, node);
+			fbm->valid_picture_num++;
+			fbm->wait_for_disp_num++;
+			node->flag.in_valid_picture_queue = 1;
+		}
 	} else {
 		make_empty(fbm, node);
 	}
@@ -430,7 +482,7 @@ void FbmReturnBuffer(struct ve_fbm *fbm, struct ve_picture *pic, int valid)
 		return;
 	}
 	k_mutex_lock(fbm_mutex(fbm), K_FOREVER);
-	return_buffer_locked(fbm, pic, valid);
+	return_buffer_locked(fbm, pic, valid, true);
 	k_mutex_unlock(fbm_mutex(fbm));
 }
 
@@ -460,32 +512,11 @@ void FbmShareBuffer(struct ve_fbm *fbm, struct ve_picture *pic)
 		return;
 	}
 
-	pic->output_mb32 = 0;
-	if (pic->pixel_format == VE_PIX_YUV_MB32_420 || pic->pixel_format == VE_PIX_NV12) {
-		struct ve_picture *out = request_buffer_locked(fbm);
-
-		if (out != NULL) {
-			out->pts = pic->pts;
-			out->pixel_format = VE_PIX_NV12;
-			out->aspect_ratio = pic->aspect_ratio;
-			out->width = pic->width;
-			out->height = pic->height;
-			out->left_offset = pic->left_offset;
-			out->top_offset = pic->top_offset;
-			out->right_offset = pic->right_offset;
-			out->bottom_offset = pic->bottom_offset;
-			if (VideoEngineConvert(fbm->ve_ops, fbm->ve_ops_self, pic, out) != 0) {
-				LOG_ERR("picture conversion failed");
-				return_buffer_locked(fbm, out, 0);
-				k_mutex_unlock(fbm_mutex(fbm));
-				return;
-			}
-			return_buffer_locked(fbm, out, 1);
-			node->flag.already_displayed = 1;
-			k_mutex_unlock(fbm_mutex(fbm));
-			return;
-		}
-		LOG_WRN("no spare picture for the conversion, queueing the tiled picture");
+	if (convert_for_display(fbm, pic) != NULL) {
+		/* the decoder keeps referencing this picture; it is freed when it lets go */
+		node->flag.already_displayed = 1;
+		k_mutex_unlock(fbm_mutex(fbm));
+		return;
 	}
 
 	node->flag.in_valid_picture_queue = 1;

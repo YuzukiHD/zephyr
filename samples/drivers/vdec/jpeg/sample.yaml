@@ -1,0 +1,12 @@
+sample:
+  name: Hardware JPEG decoder
+tests:
+  sample.drivers.vdec.jpeg:
+    platform_allow:
+      - yuzukineko/sun252i_f101/evb
+    tags: vdec
+    harness: console
+    harness_config:
+      type: one_line
+      regex:
+        - "jpeg decode done"

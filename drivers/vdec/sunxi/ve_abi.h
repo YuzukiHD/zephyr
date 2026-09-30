@@ -530,7 +530,9 @@ int VideoEngineConvert(struct ve_ops *ops, void *ops_self, struct ve_picture *in
 		       struct ve_picture *out);
 int GetBufferSize(int pixel_format, int width, int height, int *y_size, int *c_size,
 		  int *y_stride, int *c_stride, int align);
-void AddVDPlugin(void);
+void CedarPluginVDInit_mjpeg(void);
+void CedarPluginVDInit_png(void);
+void CedarPluginVDInit_h264(void);
 
 #ifdef __cplusplus
 }

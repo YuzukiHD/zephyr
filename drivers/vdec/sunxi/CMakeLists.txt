@@ -5,6 +5,9 @@ zephyr_library_sources(
   ve_core.c
   ve_fifo.c
   ve_fbm.c
+  ve_sbm.c
+  ve_decoder.c
+  vdec_sunxi.c
   glue/glue_core.c
   glue/glue_irq.c
   glue/glue_clk.c

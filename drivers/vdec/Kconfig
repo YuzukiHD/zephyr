@@ -8,6 +8,12 @@ menuconfig VDEC
 
 if VDEC
 
+config VDEC_INIT_PRIORITY
+	int "Decoder driver init priority"
+	default 90
+	help
+	  Initialisation priority of the decoder drivers.
+
 source "drivers/vdec/sunxi/Kconfig"
 
 endif # VDEC

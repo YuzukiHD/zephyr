@@ -41,6 +41,21 @@ config VDEC_SUNXI_CLOCK_MHZ
 	  Target rate of the module clock. The nearest rate the clock divider
 	  can produce below the source rate is used.
 
+config VDEC_SUNXI_STREAM_BUFFER_KB
+	int "Size of the compressed data buffer in KiB"
+	default 512
+	range 64 32768
+	help
+	  Room for compressed pictures waiting for the decoder. A single JPEG
+	  or PNG has to fit; an application can ask for more at open time.
+
+config VDEC_SUNXI_MAX_MEMORY_KB
+	int "Memory budget of one decoder in KiB"
+	default 8192
+	help
+	  Upper bound the decoders may use for pictures and stream buffer; it
+	  decides how many frame buffers a stream gets.
+
 config VDEC_SUNXI_MEM_ALIGN
 	int "Alignment of decoder buffers"
 	default 4096
