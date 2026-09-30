@@ -1,0 +1,7 @@
+sample:
+  name: H.264 file player
+tests:
+  sample.drivers.vdec.h264_player:
+    platform_allow:
+      - yuzukineko/sun252i_f101/evb
+    tags: vdec sdhc

@@ -1,0 +1,25 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "H.264 file player"
+
+config SAMPLE_PLAYER_FILE
+	string "Annex B H.264 file on the SD card"
+	default "/SD:/badapple.h264"
+
+config SAMPLE_PLAYER_FPS_NUM
+	int "Frame rate, numerator"
+	default 30000
+
+config SAMPLE_PLAYER_FPS_DEN
+	int "Frame rate, denominator"
+	default 1001
+
+config SAMPLE_PLAYER_REALTIME
+	bool "Show the frames at the frame rate"
+	default y
+	help
+	  Without it the clip is decoded as fast as possible and every frame is
+	  shown at once, which measures what the decoder can do.
+
+source "Kconfig.zephyr"
