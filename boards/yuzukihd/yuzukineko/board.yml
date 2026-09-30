@@ -7,3 +7,5 @@ board:
   vendor: yuzukihd
   socs:
   - name: sun252i_f101
+    variants:
+    - name: evb

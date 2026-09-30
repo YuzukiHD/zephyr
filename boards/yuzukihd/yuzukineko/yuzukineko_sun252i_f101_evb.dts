@@ -1,0 +1,216 @@
+/*
+ * Copyright (c) 2026 Yuzuki Tsuru
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/*
+ * F101S3 EVB1 variant of the YuzukiNeko board.
+ *
+ * Everything of yuzukineko.dts stays; this file only switches the console
+ * to the EVB debug UART (UART3) and adds the display, the PWM_BL backlight
+ * and the MBUS settings of the EVB. The peripherals that share pins with
+ * them are turned off.
+ */
+
+#include "yuzukineko.dts"
+#include <zephyr/dt-bindings/display/sunxi-display.h>
+#include <zephyr/dt-bindings/pwm/pwm.h>
+#include <zephyr/dt-bindings/misc/sun252i-f101-mbus.h>
+
+/ {
+	model = "YuzukiHD YuzukiNeko (F101S3 EVB1)";
+
+	chosen {
+		zephyr,console = &uart3;
+		zephyr,shell-uart = &uart3;
+		zephyr,display = &display;
+	};
+};
+
+/* UART3 console on PE08 (TX) / PE09 (RX), muxsel 6 (EVB1 debug UART) */
+&pio {
+	uart3_pins: uart3_pins {
+		uart3_tx_rx {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 8, 6)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 9, 6)>;
+		};
+	};
+
+	pwm_bl_pins: pwm_bl_pins {
+		pwm_bl_group {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 0, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 1, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 2, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 3, 2)>;
+		};
+	};
+};
+
+&uart3 {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart3_pins>;
+	pinctrl-names = "default";
+};
+
+/* UART1 (PB00/PB01) is not wired to the console of the EVB */
+&uart1 {
+	status = "disabled";
+};
+
+/* pins shared with the UART3 console and the LCD */
+&i2c0 {
+	status = "disabled";
+};
+
+&dbi {
+	status = "disabled";
+};
+
+&pwm {
+	status = "disabled";
+};
+
+/* PWM_BL backlight: PB0..PB3 mux 2 */
+&pwm_bl {
+	status = "okay";
+	pinctrl-0 = <&pwm_bl_pins>;
+	pinctrl-names = "default";
+};
+
+/*
+ * 1024x600 RGB666 panel of the EVB:
+ *
+ *   de0 -> tcon_lcd0 -> rgb0 -> panel0, backlight0 on the PWM_BL block
+ */
+&pio {
+	rgb_pins: rgb_pins {
+		rgb_lcd {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 0, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 1, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 2, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 3, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 4, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 5, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 6, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 7, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 8, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 9, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 6, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 7, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 12, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 13, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 14, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 15, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 16, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 17, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 18, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 19, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 20, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 21, 2)>;
+		};
+	};
+};
+
+/ {
+	backlight0: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm_bl 0 20000 PWM_POLARITY_INVERTED>;
+		max-level = <255>;
+		default-level = <250>;
+	};
+
+	panel0: panel {
+		compatible = "panel-simple";
+		width = <1024>;
+		height = <600>;
+		width-mm = <154>;
+		height-mm = <86>;
+		bus-format = "rgb666-1x18";
+		enable-delay-ms = <50>;
+		backlight = <&backlight0>;
+
+		/* PD22 switches the panel supply */
+		power-on-sequence = <SUNXI_CMD_GPIO(SUNXI_PIN(ALLWINNER_PIO_PD, 22), 1)
+				     SUNXI_CMD_DELAY(30)>;
+		power-off-sequence = <SUNXI_CMD_GPIO(SUNXI_PIN(ALLWINNER_PIO_PD, 22), 0)
+				      SUNXI_CMD_DELAY(20)>;
+
+		display-timings {
+			compatible = "zephyr,panel-timing";
+			clock-frequency = <49000000>;
+			hsync-len = <20>;
+			hfront-porch = <161>;
+			hback-porch = <35>;
+			vsync-len = <10>;
+			vfront-porch = <15>;
+			vback-porch = <25>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <1>;
+			pixelclk-active = <1>;
+		};
+	};
+};
+
+&de0 {
+	status = "okay";
+	brightness = <50>;
+	contrast = <50>;
+	saturation = <57>;
+	hue = <50>;
+};
+
+&tcon_top0 {
+	status = "okay";
+};
+
+&tcon_lcd0 {
+	status = "okay";
+};
+
+&rgb0 {
+	status = "okay";
+	pinctrl-0 = <&rgb_pins>;
+	pinctrl-names = "default";
+	hv-mode = <SUNXI_HV_PARALLEL_RGB>;
+	rgb-swap = <5>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel0>;
+			};
+		};
+	};
+};
+
+&display {
+	status = "okay";
+	width = <1024>;
+	height = <600>;
+};
+
+/* DE at top priority, RISCV capped */
+&mbus {
+	status = "okay";
+
+	display-engine@10 {
+		reg = <SUN252I_F101_MBUS_MASTER_DE>;
+		priority = <3>;
+	};
+
+	cpu@27 {
+		reg = <SUN252I_F101_MBUS_MASTER_RISCV>;
+		bandwidth-limit-mbps = <500>;
+	};
+};
