@@ -18,7 +18,7 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OURS = os.path.join(HERE, "..", "ve_abi.h")
+OURS = os.path.join(HERE, "..", "drivers", "vdec", "sunxi", "ve_abi.h")
 
 # our struct -> archive typedef name
 PAIRS = [

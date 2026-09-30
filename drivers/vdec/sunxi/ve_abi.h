@@ -9,7 +9,7 @@
  *
  * The archive reads and writes these structures directly, so member order,
  * types and sizes are fixed by it and must not be rearranged. Every struct is
- * covered by the layout check in tools/vdec_abi_check, which compares the
+ * covered by the layout check in scripts/vdec_abi_check.py, which compares the
  * offsets of all members with what the archive was built against.
  */
 
