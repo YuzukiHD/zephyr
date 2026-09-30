@@ -1,0 +1,26 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Allwinner sunxi USB 2.0 OTG controller (Mentor MUSB core with an indexed
+  endpoint register window and dynamic FIFO sizing), device mode.
+
+compatible: "allwinner,sunxi-musb"
+
+include: [base.yaml, reset-device.yaml]
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  clocks:
+    type: phandle-array
+    required: true
+
+  phys:
+    type: phandle-array
+    required: true
+    description: UTMI PHY used by the controller.

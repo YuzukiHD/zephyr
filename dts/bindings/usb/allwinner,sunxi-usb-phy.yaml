@@ -1,0 +1,45 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Allwinner sunxi USB 2.0 UTMI PHY. One PHY is shared by the OTG (device)
+  controller and the EHCI/OHCI host controllers; the controller that uses it is
+  selected by software, and the PHY driver supplies VBUS to a host.
+
+compatible: "allwinner,sunxi-usb-phy"
+
+include: phy-controller.yaml
+
+properties:
+  reg:
+    required: true
+    description: |
+      Two register blocks: the PHY glue in the OTG window and the PHY/SIE
+      block in the host controller window.
+
+  reg-names:
+    required: true
+
+  clocks:
+    type: phandle-array
+    required: true
+    description: USB bus gate that also clocks the PHY.
+
+  resets:
+    type: phandle-array
+    required: true
+    description: PHY reset line.
+
+  sram-remap-reg:
+    type: int
+    description: |
+      Address of the system register whose bits give the USB controller the
+      FIFO RAM.
+
+  sram-remap-clear:
+    type: int
+    description: Bits cleared in sram-remap-reg to hand the RAM to the USB controller.
+
+  vbus-gpios:
+    type: phandle-array
+    description: GPIO that drives VBUS, active while a host controller runs.

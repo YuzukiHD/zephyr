@@ -227,6 +227,30 @@
 			status = "disabled";
 		};
 
+		usbphy: usb-phy@4100400 {
+			compatible = "allwinner,sunxi-usb-phy";
+			#phy-cells = <0>;
+			/* OTG glue block, HCI PHY/SIE block */
+			reg = <0x04100400 0x40>, <0x04101800 0x40>;
+			reg-names = "otg", "hci";
+			clocks = <&cctl CLK_BUS_USB>;
+			resets = <&rctl RST_USB_PHY0>;
+			sram-remap-reg = <0x03000004>;
+			sram-remap-clear = <0x0a000000>;
+			status = "disabled";
+		};
+
+		usbotg: usb@4100000 {
+			compatible = "allwinner,sunxi-musb";
+			reg = <0x04100000 0x400>;
+			interrupts = <29 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_BUS_USB_OTG>;
+			resets = <&rctl RST_BUS_USB_OTG>;
+			phys = <&usbphy>;
+			status = "disabled";
+		};
+
 		pwm_bl: pwm@200a000 {
 			compatible = "allwinner,sunxi-pwm-bl";
 			#pwm-cells = <3>;
