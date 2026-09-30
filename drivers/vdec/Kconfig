@@ -1,0 +1,13 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig VDEC
+	bool "Hardware image and video decoders"
+	help
+	  Include drivers for hardware JPEG, PNG and H.264 decoders.
+
+if VDEC
+
+source "drivers/vdec/sunxi/Kconfig"
+
+endif # VDEC

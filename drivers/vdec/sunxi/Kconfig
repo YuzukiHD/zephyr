@@ -1,0 +1,54 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config VDEC_SUNXI
+	bool "Allwinner sunxi video engine decoder"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_VE_ENABLED
+	depends on FPU
+	select CACHE_MANAGEMENT
+	help
+	  Hardware JPEG, PNG and H.264 decoding on the sunxi video engine. The
+	  engine specific code is a prebuilt archive that is not part of this
+	  tree; VDEC_SUNXI_LIBCEDARC_DIR tells where to find it. Everything
+	  the archive needs from the system is provided by the glue layer in
+	  drivers/vdec/sunxi/glue.
+
+if VDEC_SUNXI
+
+config VDEC_SUNXI_LIBCEDARC_DIR
+	string "Directory of the prebuilt decoder archive"
+	help
+	  Directory holding library/sun252iw2p1/riscv32/libcedarc.a. The build
+	  fails when the archive is missing.
+
+config VDEC_SUNXI_JPEG
+	bool "JPEG decoder"
+	default y
+
+config VDEC_SUNXI_PNG
+	bool "PNG decoder"
+	default y
+
+config VDEC_SUNXI_H264
+	bool "H.264 decoder"
+	default y
+
+config VDEC_SUNXI_CLOCK_MHZ
+	int "Video engine clock in MHz"
+	default 300
+	help
+	  Target rate of the module clock. The nearest rate the clock divider
+	  can produce below the source rate is used.
+
+config VDEC_SUNXI_MEM_ALIGN
+	int "Alignment of decoder buffers"
+	default 4096
+	help
+	  Alignment of every buffer handed to the video engine.
+
+config VDEC_SUNXI_LOG_LEVEL
+	int "Log level of the video engine glue"
+	default 3
+
+endif # VDEC_SUNXI

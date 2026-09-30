@@ -270,3 +270,8 @@
 		status = "okay";
 	};
 };
+
+/* Video engine: hardware JPEG, PNG and H.264 decoder */
+&ve {
+	status = "okay";
+};
