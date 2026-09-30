@@ -16,6 +16,7 @@
 #include <zephyr/sys/printk.h>
 
 #include "test_jpeg.h"
+#include "vdec_show.h"
 
 static uint32_t checksum(const uint8_t *p, int stride, int w, int h)
 {
@@ -72,6 +73,9 @@ int main(void)
 			printk("NV12 %d %d\n", frame.width, frame.height);
 			dump_plane("Y", frame.plane[0], frame.stride[0], frame.width, frame.height);
 			dump_plane("C", frame.plane[1], frame.stride[1], frame.width, frame.height / 2);
+		}
+		if (i == 2) {
+			printk("show: %d\n", vdec_show(&frame, false));
 		}
 		vdec_frame_release(dev, &frame);
 	}
