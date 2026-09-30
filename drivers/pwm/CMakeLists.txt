@@ -60,6 +60,7 @@ zephyr_library_sources_ifdef(CONFIG_PWM_RENESAS_RZ_GPT	pwm_renesas_rz_gpt.c)
 zephyr_library_sources_ifdef(CONFIG_PWM_NEORV32	pwm_neorv32.c)
 zephyr_library_sources_ifdef(CONFIG_PWM_WCH_GPTM        pwm_wch_gptm.c)
 zephyr_library_sources_ifdef(CONFIG_PWM_SUNXI           pwm_sunxi.c)
+zephyr_library_sources_ifdef(CONFIG_PWM_SUNXI_BL        pwm_sunxi_bl.c)
 
 zephyr_library_sources_ifdef(CONFIG_USERSPACE   pwm_handlers.c)
 zephyr_library_sources_ifdef(CONFIG_PWM_CAPTURE pwm_capture.c)

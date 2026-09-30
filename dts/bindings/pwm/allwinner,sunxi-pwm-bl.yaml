@@ -1,0 +1,38 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Allwinner PWM_BL backlight controller (digital dimming + analog current
+  sink). Single logical channel 0; the duty is mapped to a load current
+  reference.
+
+compatible: "allwinner,sunxi-pwm-bl"
+
+include: [pwm-controller.yaml, pinctrl-device.yaml, base.yaml]
+
+properties:
+  reg:
+    required: true
+
+  "#pwm-cells":
+    const: 3
+
+  ccu-base:
+    type: int
+    required: true
+    description: Base address of the CCU holding the module clock registers.
+
+  mod-clk-reg:
+    type: int
+    required: true
+    description: CCU offset of the PWM_BL module clock register.
+
+  bus-clk-reg:
+    type: int
+    required: true
+    description: CCU offset of the PWM_BL bus gate / reset register.
+
+pwm-cells:
+  - channel
+  - period
+  - flags

@@ -205,6 +205,16 @@
 			status = "disabled";
 		};
 
+		pwm_bl: pwm@200a000 {
+			compatible = "allwinner,sunxi-pwm-bl";
+			#pwm-cells = <3>;
+			reg = <0x0200a000 0x400>;
+			ccu-base = <0x02001000>;
+			mod-clk-reg = <0x790>;
+			bus-clk-reg = <0x794>;
+			status = "disabled";
+		};
+
 		dma: dma-controller@3002000 {
 			compatible = "allwinner,sunxi-dma";
 			reg = <0x03002000 0x1000>;
