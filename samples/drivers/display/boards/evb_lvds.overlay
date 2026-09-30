@@ -1,0 +1,105 @@
+/*
+ * 1280x800 single-link LVDS panel (6 bit SPWG) instead of the RGB panel.
+ * Build with -DEXTRA_DTC_OVERLAY_FILE=boards/evb_lvds.overlay
+ *
+ * Not tested on hardware.
+ */
+#include <zephyr/dt-bindings/display/sunxi-display.h>
+#include <zephyr/dt-bindings/pwm/pwm.h>
+
+&pio {
+	lvds_pins: lvds_pins {
+		lvds_lanes {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 12, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 13, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 14, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 15, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 16, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 17, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 18, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 19, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 20, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 21, 3)>;
+		};
+	};
+};
+
+/ {
+	backlight_lvds: backlight-lvds {
+		compatible = "pwm-backlight";
+		pwms = <&pwm_bl 0 20000 PWM_POLARITY_INVERTED>;
+		max-level = <255>;
+		default-level = <128>;
+	};
+
+	panel_lvds: panel-lvds {
+		compatible = "panel-simple";
+		width = <1280>;
+		height = <800>;
+		width-mm = <150>;
+		height-mm = <94>;
+		bus-format = "rgb666-1x7x3-spwg";
+		enable-delay-ms = <50>;
+		backlight = <&backlight_lvds>;
+
+		display-timings {
+			compatible = "zephyr,panel-timing";
+			clock-frequency = <70000000>;
+			hsync-len = <10>;
+			hfront-porch = <118>;
+			hback-porch = <10>;
+			vsync-len = <5>;
+			vfront-porch = <4>;
+			vback-porch = <5>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <1>;
+			pixelclk-active = <1>;
+		};
+	};
+};
+
+/* the RGB panel shares the LCD pins */
+&rgb0 {
+	status = "disabled";
+};
+
+&panel0 {
+	status = "disabled";
+};
+
+&backlight0 {
+	status = "disabled";
+};
+
+&dphy0 {
+	status = "okay";
+};
+
+&lvds0 {
+	status = "okay";
+	pinctrl-0 = <&lvds_pins>;
+	pinctrl-names = "default";
+	use-tcon-frm;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_lvds>;
+			};
+		};
+	};
+};
+
+&display {
+	width = <1280>;
+	height = <800>;
+};
