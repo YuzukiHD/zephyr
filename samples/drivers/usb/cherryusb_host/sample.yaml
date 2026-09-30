@@ -1,0 +1,8 @@
+sample:
+  name: CherryUSB host (EHCI/OHCI) on the sunxi USB port
+tests:
+  sample.drivers.usb.cherryusb_host:
+    platform_allow: yuzukineko/sun252i_f101/evb
+    tags: usb
+    harness: none
+    build_only: true

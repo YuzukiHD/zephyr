@@ -88,20 +88,3 @@ uintptr_t usb_sunxi_otg_base(void)
 }
 
 #endif /* DT_HAS_COMPAT_STATUS_OKAY(allwinner_sunxi_musb) */
-
-#ifdef CONFIG_USB_DCACHE_ENABLE
-void usb_dcache_clean(uintptr_t addr, size_t size)
-{
-	sys_cache_data_flush_range((void *)addr, size);
-}
-
-void usb_dcache_invalidate(uintptr_t addr, size_t size)
-{
-	sys_cache_data_invd_range((void *)addr, size);
-}
-
-void usb_dcache_flush(uintptr_t addr, size_t size)
-{
-	sys_cache_data_flush_and_invd_range((void *)addr, size);
-}
-#endif
