@@ -76,14 +76,14 @@ void usb_hc_low_level_init(struct usbh_bus *bus)
 	}
 
 	if (!connected) {
-		IRQ_CONNECT(DT_IRQ_BY_NAME(HCI_NODE, ehci, irq),
-			    DT_IRQ_BY_NAME(HCI_NODE, ehci, priority), sunxi_ehci_isr, NULL, 0);
-		IRQ_CONNECT(DT_IRQ_BY_NAME(HCI_NODE, ohci, irq),
-			    DT_IRQ_BY_NAME(HCI_NODE, ohci, priority), sunxi_ohci_isr, NULL, 0);
+		IRQ_CONNECT(DT_IRQN_BY_IDX(HCI_NODE, 0),
+			    DT_IRQ_BY_IDX(HCI_NODE, 0, priority), sunxi_ehci_isr, NULL, 0);
+		IRQ_CONNECT(DT_IRQN_BY_IDX(HCI_NODE, 1),
+			    DT_IRQ_BY_IDX(HCI_NODE, 1, priority), sunxi_ohci_isr, NULL, 0);
 		connected = true;
 	}
-	irq_enable(DT_IRQ_BY_NAME(HCI_NODE, ehci, irq));
-	irq_enable(DT_IRQ_BY_NAME(HCI_NODE, ohci, irq));
+	irq_enable(DT_IRQN_BY_IDX(HCI_NODE, 0));
+	irq_enable(DT_IRQN_BY_IDX(HCI_NODE, 1));
 }
 
 void usb_hc_low_level_deinit(struct usbh_bus *bus)
@@ -92,8 +92,8 @@ void usb_hc_low_level_deinit(struct usbh_bus *bus)
 
 	ARG_UNUSED(bus);
 
-	irq_disable(DT_IRQ_BY_NAME(HCI_NODE, ehci, irq));
-	irq_disable(DT_IRQ_BY_NAME(HCI_NODE, ohci, irq));
+	irq_disable(DT_IRQN_BY_IDX(HCI_NODE, 0));
+	irq_disable(DT_IRQN_BY_IDX(HCI_NODE, 1));
 	sunxi_usb_phy_release(phy, SUNXI_USB_PHY_HOST);
 }
 
