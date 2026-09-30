@@ -214,3 +214,8 @@
 		bandwidth-limit-mbps = <500>;
 	};
 };
+
+/* 2D graphics accelerator */
+&g2d {
+	status = "okay";
+};
