@@ -1,0 +1,12 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "Hardware PNG decoder sample"
+
+config SAMPLE_VDEC_DUMP
+	bool "Dump the decoded picture on the console"
+	help
+	  Print the RGBA pixels as hex lines (about 20 s at 115200 baud for a
+	  320x240 picture) so they can be compared with a host decode.
+
+source "Kconfig.zephyr"

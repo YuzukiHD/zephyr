@@ -1,0 +1,12 @@
+sample:
+  name: Hardware PNG decoder
+tests:
+  sample.drivers.vdec.png:
+    platform_allow:
+      - yuzukineko/sun252i_f101/evb
+    tags: vdec
+    harness: console
+    harness_config:
+      type: one_line
+      regex:
+        - "png decode done"

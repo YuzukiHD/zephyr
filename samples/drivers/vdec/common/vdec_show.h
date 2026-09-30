@@ -87,15 +87,23 @@ static inline int vdec_show(const struct vdec_frame *frame, bool blend_over_blac
 	dst.plane[0] = screen;
 	dst.pitch[0] = caps.x_resolution * bpp;
 
-	/* R, G, B, A bytes in memory are the word 0xAABBGGRR */
-	src.format = G2D_PIXFMT_ABGR8888;
+	src.format = G2D_PIXFMT_RGBA8888;
 	src.plane[0] = frame->plane[0];
 	src.pitch[0] = frame->stride[0];
 	src.width = frame->stride[0] / 4;
 	src.height = frame->height;
 
 	ret = g2d_fill(g2d, &dst, &full, 0xff000000);
-	if (ret == 0) {
+	if (ret == 0 && blend_over_black) {
+		/* the picture has an alpha channel: compose it with the black background */
+		struct g2d_blend blend = {
+			.mode = G2D_BLEND_SRC_OVER,
+			.fg_alpha_mode = G2D_ALPHA_PIXEL,
+			.bg_alpha_mode = G2D_ALPHA_PIXEL,
+		};
+
+		ret = g2d_blend(g2d, &src, &srect, &dst, &drect, &dst, &drect, &blend, flags);
+	} else if (ret == 0) {
 		ret = g2d_blit(g2d, &src, &srect, &dst, &drect, G2D_ROTATE_0, flags);
 	}
 	if (ret != 0) {

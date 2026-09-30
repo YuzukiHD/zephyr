@@ -16,6 +16,7 @@ import sys
 from PIL import Image, ImageDraw
 
 import io
+import zlib
 
 W, H = 320, 240
 
@@ -75,7 +76,11 @@ def main():
     png = buf.getvalue()
     os.makedirs(os.path.join(here, "png/src"), exist_ok=True)
     open(os.path.join(here, "png/src/test_png.h"), "w").write(c_array("test_png", png))
-    open(os.path.join(out, "ref_png.rgba"), "wb").write(Image.open(io.BytesIO(png)).convert("RGBA").tobytes())
+    rgba = Image.open(io.BytesIO(png)).convert("RGBA").tobytes()
+    open(os.path.join(out, "ref_png.rgba"), "wb").write(rgba)
+    # the decoder delivers 32 bit words with R on top: A, B, G, R in memory
+    word = b"".join(rgba[i:i + 4][::-1] for i in range(0, len(rgba), 4))
+    print("png crc32 of the decoder layout: %08x" % zlib.crc32(word))
     open(os.path.join(out, "test.png"), "wb").write(png)
     print("jpeg %d bytes, png %d bytes" % (len(jpg), len(png)))
 

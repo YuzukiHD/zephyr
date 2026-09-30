@@ -39,7 +39,10 @@ enum vdec_format {
 	VDEC_FORMAT_NV12 = 1,
 	/** 8 bit luma plane followed by an interleaved Cr/Cb plane at half resolution */
 	VDEC_FORMAT_NV21,
-	/** 8 bit R, G, B, A bytes per pixel in memory order */
+	/**
+	 * 32 bit little-endian words with R in the top byte and A in the lowest
+	 * (so the bytes in memory are A, B, G, R)
+	 */
 	VDEC_FORMAT_RGBA8888,
 };
 
