@@ -205,6 +205,14 @@
 			status = "disabled";
 		};
 
+		mbus: memory-bus@3102000 {
+			compatible = "allwinner,sunxi-mbus";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x03102000 0x1000>;
+			status = "disabled";
+		};
+
 		pwm_bl: pwm@200a000 {
 			compatible = "allwinner,sunxi-pwm-bl";
 			#pwm-cells = <3>;

@@ -1,0 +1,64 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
+
+description: |
+  Allwinner sunxi memory bus (MBUS). Arbitrates the memory accesses of the
+  bus masters (CPU, display engine, DMA, ...) and monitors their bandwidth.
+
+  Every bus master that needs a non-default setting is a child node, named
+  after the master with its number (in hex) as unit address and in reg
+  (see dt-bindings/misc):
+
+    &mbus {
+            display-engine@10 {
+                    reg = <SUN252I_F101_MBUS_MASTER_DE>;
+                    priority = <3>;
+            };
+
+            cpu@27 {
+                    reg = <SUN252I_F101_MBUS_MASTER_RISCV>;
+                    bandwidth-limit-mbps = <500>;
+            };
+    };
+
+compatible: "allwinner,sunxi-mbus"
+
+include: base.yaml
+
+properties:
+  reg:
+    required: true
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  mbus-clock-mhz:
+    type: int
+    default: 252
+    description: |
+      MBUS clock in MHz, the unit of the bandwidth limit registers
+      (limit register = 256 * MB/s / mbus-clock-mhz).
+
+  pmu-window-us:
+    type: int
+    default: 50000
+    description: Length of the bandwidth monitor window in microseconds.
+
+child-binding:
+  description: Arbitration settings of one bus master.
+  properties:
+    reg:
+      type: int
+      required: true
+      description: Number of the bus master (0..39).
+
+    priority:
+      type: int
+      description: Arbitration priority 0..3, 3 is the highest.
+
+    bandwidth-limit-mbps:
+      type: int
+      description: Bandwidth cap of the master in MB/s.

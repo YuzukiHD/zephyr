@@ -1,0 +1,33 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
+
+config MBUS_SUNXI
+	bool "Allwinner sunxi memory bus (MBUS) driver"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_MBUS_ENABLED
+	help
+	  Programs the arbitration priority and bandwidth limit of the bus
+	  masters from the devicetree and exposes the bandwidth monitor.
+
+if MBUS_SUNXI
+
+config MBUS_SUNXI_INIT_PRIORITY
+	int "MBUS init priority"
+	default 40
+	help
+	  Must be lower than the display (DISPLAY_INIT_PRIORITY) so that the
+	  priorities are in place before the display engine starts.
+
+config MBUS_SUNXI_SHELL
+	bool "MBUS shell commands (mbus ...)"
+	default y
+	depends on SHELL
+	help
+	  "mbus stats|prio|limit" to read the bandwidth of the masters and to
+	  change their priority and limit at run time.
+
+module = MBUS_SUNXI
+module-str = mbus_sunxi
+source "subsys/logging/Kconfig.template.log_config"
+
+endif # MBUS_SUNXI
