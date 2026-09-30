@@ -17,7 +17,7 @@ config G2D_INIT_PRIORITY
 
 config G2D_SHELL
 	bool "G2D shell commands (g2d ...)"
-	depends on SHELL
+	depends on SHELL && !MINIMAL_LIBC
 	default y
 	help
 	  "g2d info|fill|blit|blend|bench" to exercise the accelerator and
