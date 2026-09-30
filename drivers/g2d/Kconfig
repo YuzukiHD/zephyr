@@ -1,0 +1,22 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig G2D
+	bool "2D graphics accelerator (G2D) drivers"
+	help
+	  Enable the G2D API and drivers: hardware fill, copy with format
+	  conversion, scaling, rotation and alpha blending of memory buffers.
+
+if G2D
+
+config G2D_INIT_PRIORITY
+	int "G2D init priority"
+	default 41
+	help
+	  Initialization priority of the G2D drivers in the POST_KERNEL level.
+
+module = G2D
+module-str = g2d
+source "subsys/logging/Kconfig.template.log_config"
+
+endif # G2D
