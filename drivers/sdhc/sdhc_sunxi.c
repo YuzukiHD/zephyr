@@ -170,6 +170,8 @@ LOG_MODULE_REGISTER(sdhc_sunxi, CONFIG_SDHC_LOG_LEVEL);
 #define SMHC_RX_WATERMARK	7
 #define SMHC_TX_WATERMARK	248
 #define SMHC_BURST_SIZE		2
+/* transfers below this size are copied by the CPU when the buffer is not aligned */
+#define SMHC_BOUNCE_MIN		512U
 
 struct smhc_desc {
 	uint32_t config;
@@ -199,6 +201,8 @@ struct smhc_data {
 	struct k_mutex lock;
 	struct k_sem done;
 	struct sdhc_io ios;
+	/* allocated when first needed */
+	uint8_t *bounce;
 
 	/* Request state shared with the interrupt handler */
 	volatile uint32_t need;
@@ -599,6 +603,22 @@ static int smhc_wait_idle(const struct device *dev, int timeout_ms)
 	return 0;
 }
 
+/* Aligned memory for transfers whose own buffer cannot be used by the DMA engine */
+static void *smhc_bounce(struct smhc_data *data, uint32_t len)
+{
+	if (CONFIG_SDHC_SUNXI_BOUNCE_KB == 0 || len > CONFIG_SDHC_SUNXI_BOUNCE_KB * 1024U) {
+		return NULL;
+	}
+	if (data->bounce == NULL) {
+		data->bounce = k_aligned_alloc(SMHC_DMA_ALIGN, CONFIG_SDHC_SUNXI_BOUNCE_KB * 1024U);
+		if (data->bounce == NULL) {
+			LOG_WRN("no memory for the bounce buffer");
+		}
+	}
+
+	return data->bounce;
+}
+
 static int smhc_xfer(const struct device *dev, struct sdhc_command *cmd, struct sdhc_data *sd)
 {
 	struct smhc_data *data = dev->data;
@@ -606,6 +626,8 @@ static int smhc_xfer(const struct device *dev, struct sdhc_command *cmd, struct 
 	uint32_t imask = INT_ERR_MASK | data->sdio_mask;
 	bool use_dma = false;
 	bool write = false;
+	/* memory the DMA engine moves data to or from: the caller's or the bounce buffer */
+	void *dma_buf = NULL;
 	uint32_t len = 0;
 	int timeout = cmd->timeout_ms > 0 ? cmd->timeout_ms : 1000;
 	int ret;
@@ -648,11 +670,27 @@ static int smhc_xfer(const struct device *dev, struct sdhc_command *cmd, struct 
 			data->need = INT_DATA_OVER;
 		}
 
-		use_dma = len > 4U && ((uintptr_t)sd->data % SMHC_DMA_ALIGN) == 0U &&
-			  (len % SMHC_DMA_ALIGN) == 0U && len <= ARRAY_SIZE(data->desc) * DES_MAX_LEN;
+		/*
+		 * The engine needs cache-line aligned memory (the lines around a buffer
+		 * are not ours to invalidate). Other buffers of block size or more go
+		 * through an aligned bounce buffer; only small odd ones are copied by
+		 * the CPU.
+		 */
+		if (len > 4U && len <= ARRAY_SIZE(data->desc) * DES_MAX_LEN) {
+			if (((uintptr_t)sd->data % SMHC_DMA_ALIGN) == 0U &&
+			    (len % SMHC_DMA_ALIGN) == 0U) {
+				dma_buf = sd->data;
+			} else if (len >= SMHC_BOUNCE_MIN) {
+				dma_buf = smhc_bounce(data, len);
+				if (dma_buf != NULL && write) {
+					memcpy(dma_buf, sd->data, len);
+				}
+			}
+		}
+		use_dma = dma_buf != NULL;
 		if (use_dma) {
-			sys_cache_data_flush_range(sd->data, len);
-			ret = smhc_build_desc(data, sd->data, len);
+			sys_cache_data_flush_range(dma_buf, ROUND_UP(len, SMHC_DMA_ALIGN));
+			ret = smhc_build_desc(data, dma_buf, len);
 			if (ret) {
 				return ret;
 			}
@@ -709,7 +747,10 @@ out:
 		if (use_dma) {
 			smhc_dma_stop(dev);
 			if (!write) {
-				sys_cache_data_invd_range(sd->data, len);
+				sys_cache_data_invd_range(dma_buf, ROUND_UP(len, SMHC_DMA_ALIGN));
+				if (dma_buf != sd->data && ret == 0) {
+					memcpy(sd->data, dma_buf, len);
+				}
 			}
 		}
 		smhc_wr(dev, SMHC_GCTRL, smhc_rd(dev, SMHC_GCTRL) | GCTRL_FIFO_RST);

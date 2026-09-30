@@ -22,4 +22,13 @@ config SDHC_SUNXI_MAX_DESC
 	  Each descriptor moves up to 8 KiB, so this bounds the size of one
 	  transfer done by DMA. Larger requests are rejected.
 
+config SDHC_SUNXI_BOUNCE_KB
+	int "Size of the bounce buffer in KiB"
+	default 64
+	help
+	  Data transfers use the DMA engine, which needs cache-line aligned
+	  memory. A transfer from or to other memory goes through a buffer of
+	  this size (allocated from the kernel heap on first use), copied by the CPU; larger ones
+	  are done by the CPU alone. 0 disables the bounce buffer.
+
 endif # SDHC_SUNXI

@@ -47,6 +47,8 @@ static void fill(uint8_t *p, size_t n, uint32_t *seed)
 	}
 }
 
+static void bench_raw(uint32_t sectors);
+
 static int raw_test(void)
 {
 	uint32_t sectors, ssize;
@@ -81,6 +83,8 @@ static int raw_test(void)
 	t = k_uptime_get() - t;
 	printk("read 4 MiB: %lld ms (%u KiB/s)\n", t, t ? (uint32_t)(4096 * 1000 / t) : 0);
 
+	bench_raw(sectors);
+
 	/* unaligned destination, single and multi block */
 	ret = disk_access_read(DISK_NAME, buf + 1, 0, 1);
 	printk("unaligned 1 sector read: %d\n", ret);
@@ -91,6 +95,77 @@ static int raw_test(void)
 	printk("unaligned 8 sector read: %d\n", ret);
 
 	return ret;
+}
+
+/* Raw read speed for several request sizes, with the destination aligned or not */
+static void bench_raw(uint32_t sectors)
+{
+	static const uint32_t counts[] = {1, 8, 32, 128};
+	const uint32_t total = 8U << 20;
+
+	for (int aligned = 1; aligned >= 0; aligned--) {
+		for (int c = 0; c < ARRAY_SIZE(counts); c++) {
+			uint32_t per = counts[c], n = 0, lba = 0;
+			uint8_t *dst = buf + (aligned ? 0 : 4);
+			int64_t t = k_uptime_get();
+
+			if (per * 512 > BUF_SIZE) {
+				continue;
+			}
+			while (n < total / 512 && lba + per <= sectors) {
+				if (disk_access_read(DISK_NAME, dst, lba, per) != 0) {
+					printk("bench read failed at %u\n", lba);
+					return;
+				}
+				lba += per;
+				n += per;
+			}
+			t = k_uptime_get() - t;
+			printk("raw read %3u KiB requests, %s: %lld ms for %u MiB = %u KiB/s\n",
+			       per / 2, aligned ? "aligned  " : "unaligned", t, (n * 512U) >> 20,
+			       t ? (uint32_t)((uint64_t)n * 512 / 1024 * 1000 / t) : 0);
+		}
+	}
+}
+
+/* File system speed with 32 KiB buffers */
+static void bench_file(void)
+{
+	struct fs_file_t f;
+	const size_t total = 4U << 20;
+	int64_t t;
+	size_t off;
+
+	fs_file_t_init(&f);
+	if (fs_open(&f, MOUNT_PT "/BENCH.BIN", FS_O_CREATE | FS_O_WRITE | FS_O_TRUNC) != 0) {
+		return;
+	}
+	memset(buf, 0x5a, 32 * 1024);
+	t = k_uptime_get();
+	for (off = 0; off < total; off += 32 * 1024) {
+		if (fs_write(&f, buf, 32 * 1024) != 32 * 1024) {
+			break;
+		}
+	}
+	fs_close(&f);
+	t = k_uptime_get() - t;
+	printk("file write 4 MiB in 32 KiB pieces: %lld ms = %u KiB/s\n", t,
+	       t ? (uint32_t)(total / 1024 * 1000 / t) : 0);
+
+	if (fs_open(&f, MOUNT_PT "/BENCH.BIN", FS_O_READ) != 0) {
+		return;
+	}
+	t = k_uptime_get();
+	for (off = 0; off < total; off += 32 * 1024) {
+		if (fs_read(&f, buf, 32 * 1024) != 32 * 1024) {
+			break;
+		}
+	}
+	fs_close(&f);
+	t = k_uptime_get() - t;
+	printk("file read  4 MiB in 32 KiB pieces: %lld ms = %u KiB/s\n", t,
+	       t ? (uint32_t)(total / 1024 * 1000 / t) : 0);
+	fs_unlink(MOUNT_PT "/BENCH.BIN");
 }
 
 static int fs_test(void)
@@ -165,6 +240,8 @@ static int fs_test(void)
 	t = k_uptime_get() - t;
 	printk("read back 1 MiB: %lld ms, data OK\n", t);
 	ret = 0;
+
+	bench_file();
 
 umount:
 	fs_unlink(TEST_FILE);
