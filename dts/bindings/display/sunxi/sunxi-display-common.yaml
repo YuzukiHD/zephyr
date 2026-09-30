@@ -1,0 +1,33 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+# Properties shared by the blocks of the Allwinner display pipeline.
+
+include: base.yaml
+
+properties:
+  clocks:
+    type: phandle-array
+    description: Clocks of the block, in the order of clock-names.
+
+  clock-names:
+    type: string-array
+    description: Clock names, "mod" (module) and "bus".
+
+  clock-parents:
+    type: array
+    description: |
+      Parent clock id for each entry of clocks (0 = leave as is). The clock
+      is switched to this parent before its rate is set.
+
+  clock-rates:
+    type: array
+    description: Rate in Hz for each entry of clocks (0 = leave as is).
+
+  resets:
+    type: phandle-array
+    description: Reset lines of the block, in the order of reset-names.
+
+  reset-names:
+    type: string-array
+    description: Reset names, "bus".

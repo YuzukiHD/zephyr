@@ -55,3 +55,5 @@ if (CONFIG_SDL_DISPLAY)
 		target_sources(native_simulator INTERFACE display_sdl_bottom.c)
 	endif()
 endif()
+
+add_subdirectory_ifdef(CONFIG_DISPLAY_SUNXI sunxi)

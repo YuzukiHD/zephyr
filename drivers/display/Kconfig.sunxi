@@ -1,0 +1,127 @@
+# Allwinner display-engine / TCON display stack
+
+# SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
+
+config DISPLAY_SUNXI
+	bool "Allwinner display engine + TCON display driver"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_DISPLAY_ENABLED
+	depends on SOC_SUN252I_F101
+	select CACHE_MANAGEMENT
+	select DYNAMIC_INTERRUPTS
+	imply PWM
+	help
+	  Display stack of the Allwinner F101 (display engine, timing
+	  controller, RGB/LVDS/DSI encoders, panels, backlights) exposed as a
+	  Zephyr display device. The stack allocates its register command
+	  queue and shadow registers from the kernel heap, so
+	  HEAP_MEM_POOL_SIZE must be large enough (256 KiB is enough for the
+	  RGB configuration).
+
+if DISPLAY_SUNXI
+
+choice DISPLAY_SUNXI_PIXEL_FORMAT
+	prompt "Framebuffer pixel format"
+	default DISPLAY_SUNXI_RGB565
+
+config DISPLAY_SUNXI_RGB565
+	bool "RGB565"
+
+config DISPLAY_SUNXI_ARGB8888
+	bool "ARGB8888"
+
+endchoice
+
+config DISPLAY_SUNXI_READY_TIMEOUT_MS
+	int "Time to wait for the boot modeset"
+	default 5000
+
+menu "Display pipeline options"
+
+config DISPLAY_SOC_SUN252IW2
+	bool "Allwinner sun252iw2 (F101) hardware description"
+	default y
+	help
+	  Hardware graph of the SoC: register windows, clocks, resets,
+	  interrupts and links between the display engine, TCON and encoders.
+
+config DISPLAY_DE
+	bool "Display engine 2.x"
+	default y
+
+config DISPLAY_DE_WRITEBACK
+	bool "Write-back (capture) support"
+	depends on DISPLAY_DE
+	default y
+
+config DISPLAY_TCON_LCD
+	bool "TCON LCD timing controller"
+	default y
+
+config DISPLAY_ENCODER_RGB
+	bool "Parallel RGB (HV) screens"
+	depends on DISPLAY_TCON_LCD
+	default y
+
+config DISPLAY_ENCODER_LVDS
+	bool "LVDS screens"
+	depends on DISPLAY_TCON_LCD
+	select DISPLAY_COMBO_DPHY
+	default y
+
+config DISPLAY_ENCODER_DSI
+	bool "MIPI DSI screens"
+	depends on DISPLAY_TCON_LCD
+	select DISPLAY_COMBO_DPHY
+	default y
+
+config DISPLAY_COMBO_DPHY
+	bool
+	help
+	  Combo D-PHY shared by the DSI and LVDS encoders.
+
+config DISPLAY_PANEL_SIMPLE
+	bool "Simple RGB/LVDS panel driver"
+	default y
+
+config DISPLAY_PANEL_SPI_INIT
+	bool "Bit-banged SPI init sequences for simple panels"
+	depends on DISPLAY_PANEL_SIMPLE
+	default y
+
+config DISPLAY_PANEL_DSI
+	bool "Generic MIPI DSI panel driver"
+	depends on DISPLAY_ENCODER_DSI
+	default y
+
+config DISPLAY_BACKLIGHT_GPIO
+	bool "GPIO backlight"
+	default y
+
+config DISPLAY_BACKLIGHT_PWM
+	bool "PWM backlight"
+	default y
+
+config DISPLAY_BOOT_COLORBAR
+	bool "Show the TCON colour bar at boot"
+	help
+	  Bring-up aid: proves clocks, pins and panel timing without the
+	  display engine.
+
+config DISPLAY_SHELL_CMDS
+	bool "Shell commands (display ...)"
+	default y
+	depends on SHELL
+	help
+	  "display info|graph|regs|stats|log|backlight|blank" for inspecting
+	  and driving the pipeline.
+
+config HAL_TEST_DISPLAY_ENGINE
+	bool "display-engine self test commands (display_test ...)"
+	depends on DISPLAY_SHELL_CMDS
+	help
+	  Build debug/display_test.c (needs an OS specific shell front-end).
+
+endmenu
+
+endif # DISPLAY_SUNXI

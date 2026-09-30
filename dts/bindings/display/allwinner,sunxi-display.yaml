@@ -1,0 +1,22 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Allwinner display engine + TCON display pipeline root. The blocks of the
+  pipeline (display engine, TCON, encoders, D-PHY, panel, backlight) are
+  separate nodes described by their own bindings; the driver walks all
+  enabled ones. This node makes the pipeline visible as a Zephyr display
+  device and gives the size of the framebuffer.
+
+compatible: "allwinner,sunxi-display"
+
+include: base.yaml
+
+properties:
+  height:
+    type: int
+    description: Height of the framebuffer in pixels.
+
+  width:
+    type: int
+    description: Width of the framebuffer in pixels.

@@ -1,0 +1,31 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: PWM dimmed panel backlight with an optional enable GPIO.
+
+compatible: "pwm-backlight"
+
+include: base.yaml
+
+properties:
+  pwms:
+    type: phandle-array
+    required: true
+    description: PWM channel, period in ns and flags (PWM_POLARITY_*).
+
+  max-level:
+    type: int
+    default: 255
+
+  default-level:
+    type: int
+    default: 255
+
+  min-level:
+    type: int
+    default: 0
+    description: Minimum duty (level 1) in 1/max-level units.
+
+  enable-gpios:
+    type: phandle-array
+    description: Optional GPIO switching the backlight supply.

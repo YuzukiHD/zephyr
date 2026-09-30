@@ -1,0 +1,21 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner F101 MIPI DSI host (uses the combo D-PHY).
+
+compatible: "allwinner,sun252iw2-mipi-dsi"
+
+include: [sunxi-display-ports.yaml, pinctrl-device.yaml]
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  phy:
+    type: phandle
+    required: true
+    description: Combo D-PHY of the DSI link.
+

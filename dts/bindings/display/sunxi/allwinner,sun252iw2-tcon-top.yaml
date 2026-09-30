@@ -1,0 +1,12 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner F101 display interface top (clock and route glue of the TCON).
+
+compatible: "allwinner,sun252iw2-tcon-top"
+
+include: sunxi-display-common.yaml
+
+properties:
+  reg:
+    required: true

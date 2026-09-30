@@ -380,6 +380,137 @@
 			status = "disabled";
 		};
 
+		/*
+		 * Display pipeline (see dts/bindings/display/sunxi):
+		 *
+		 *   de0 -> tcon_lcd0 -+-> rgb0  -> panel
+		 *                     +-> lvds0 -> panel  (via dphy0)
+		 *                     +-> dsi0  -> panel  (via dphy0)
+		 *
+		 * The boards enable the blocks they wire and add the panel and
+		 * backlight nodes; the links below only take effect when both
+		 * ends are enabled.
+		 */
+		display: display-subsystem {
+			compatible = "allwinner,sunxi-display";
+			status = "disabled";
+		};
+
+		de0: display-engine@5000000 {
+			compatible = "allwinner,sun252iw2-display-engine";
+			reg = <0x05000000 0x200000>;
+			clocks = <&cctl CLK_DE>, <&cctl CLK_BUS_DE>;
+			clock-names = "mod", "bus";
+			clock-parents = <CLK_PLL_PERI_2X 0>;
+			clock-rates = <300000000 0>;
+			resets = <&rctl RST_BUS_DE>;
+			reset-names = "bus";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&tcon_lcd0>;
+					};
+				};
+			};
+		};
+
+		tcon_top0: tcon-top@5460000 {
+			compatible = "allwinner,sun252iw2-tcon-top";
+			reg = <0x05460000 0x1000>;
+			clocks = <&cctl CLK_BUS_DPSS_TOP>;
+			clock-names = "bus";
+			resets = <&rctl RST_BUS_DPSS_TOP>;
+			reset-names = "bus";
+			status = "disabled";
+		};
+
+		tcon_lcd0: tcon-lcd@5461000 {
+			compatible = "allwinner,sun252iw2-tcon-lcd";
+			reg = <0x05461000 0x1000>;
+			interrupts = <90 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_TCONLCD>, <&cctl CLK_BUS_TCONLCD>;
+			clock-names = "mod", "bus";
+			clock-parents = <CLK_PLL_VIDEO0_4X 0>;
+			resets = <&rctl RST_BUS_TCONLCD>;
+			reset-names = "bus";
+			top = <&tcon_top0>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&rgb0>;
+					};
+
+					endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&lvds0>;
+					};
+
+					endpoint@2 {
+						reg = <2>;
+						remote-endpoint = <&dsi0>;
+					};
+				};
+			};
+		};
+
+		rgb0: rgb {
+			compatible = "allwinner,sunxi-rgb";
+			status = "disabled";
+		};
+
+		lvds0: lvds {
+			compatible = "allwinner,sunxi-lvds";
+			resets = <&rctl RST_BUS_LVDS0>;
+			reset-names = "bus";
+			phy = <&dphy0>;
+			status = "disabled";
+		};
+
+		dsi0: dsi@5450000 {
+			compatible = "allwinner,sun252iw2-mipi-dsi";
+			reg = <0x05450000 0x1000>;
+			interrupts = <92 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_DSI>, <&cctl CLK_BUS_DSI>;
+			clock-names = "mod", "bus";
+			clock-parents = <CLK_PLL_PERI_1X 0>;
+			clock-rates = <150000000 0>;
+			resets = <&rctl RST_BUS_DSI>;
+			reset-names = "bus";
+			phy = <&dphy0>;
+			status = "disabled";
+		};
+
+		dphy0: phy@5451000 {
+			compatible = "allwinner,sun252iw2-combo-dphy";
+			reg = <0x05451000 0x1000>;
+			clocks = <&cctl CLK_COMBOPHY0>, <&cctl CLK_BUS_COMBOPHY0>;
+			clock-names = "mod", "bus";
+			clock-parents = <CLK_PLL_VIDEO0_4X 0>;
+			status = "disabled";
+		};
+
 		dbi: mipi-dbi@4026000 {
 			compatible = "allwinner,sunxi-dbi";
 			#address-cells = <1>;

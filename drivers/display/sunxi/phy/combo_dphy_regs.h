@@ -1,0 +1,109 @@
+/* SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later */
+/*
+ * Combo D-PHY (MIPI D-PHY TX + LVDS) register map, sun252iw2.
+ */
+#ifndef __COMBO_DPHY_REGS_H__
+#define __COMBO_DPHY_REGS_H__
+
+#include <dpy/dpy_types.h>
+
+#define DPHY_GCTL			0x000
+#define   DPHY_GCTL_LANE_NUM		DPY_GENMASK(5, 4)
+#define   DPHY_GCTL_MODULE_EN		DPY_BIT(0)
+
+#define DPHY_TX_CTL			0x004
+#define   DPHY_TX_HSTX_CLK_CONT		DPY_BIT(28)
+
+#define DPHY_TX_TIME0			0x010
+#define   DPHY_TX_HS_TRAIL		DPY_GENMASK(31, 24)
+#define   DPHY_TX_HS_PRE		DPY_GENMASK(23, 16)
+#define   DPHY_TX_DTERM			DPY_GENMASK(15, 8)
+#define   DPHY_TX_LPX			DPY_GENMASK(7, 0)
+#define DPHY_TX_TIME1			0x014
+#define   DPHY_TX_CK_POST		DPY_GENMASK(31, 24)
+#define   DPHY_TX_CK_PRE		DPY_GENMASK(23, 16)
+#define   DPHY_TX_CK_ZERO		DPY_GENMASK(15, 8)
+#define   DPHY_TX_CK_PREP		DPY_GENMASK(7, 0)
+#define DPHY_TX_TIME2			0x018
+#define   DPHY_TX_HS_DLY_MODE		DPY_BIT(28)
+#define   DPHY_TX_HS_DLY		DPY_GENMASK(23, 8)
+#define   DPHY_TX_CK_TRAIL		DPY_GENMASK(7, 0)
+#define DPHY_TX_TIME3			0x01c
+#define   DPHY_TX_ULPS_EXIT		DPY_GENMASK(19, 0)
+#define DPHY_TX_TIME4			0x020
+#define   DPHY_TX_HSTX_ANA1		DPY_GENMASK(15, 8)
+#define   DPHY_TX_HSTX_ANA0		DPY_GENMASK(7, 0)
+
+#define DPHY_ANA0			0x04c
+#define   DPHY_ANA0_PWS			DPY_BIT(31)
+#define   DPHY_ANA0_DMPC		DPY_BIT(28)
+#define   DPHY_ANA0_DMPD		DPY_GENMASK(27, 24)
+#define   DPHY_ANA0_SLV			DPY_GENMASK(14, 12)
+#define   DPHY_ANA0_DEN			DPY_GENMASK(11, 8)
+#define   DPHY_ANA0_LPTX_SETC		DPY_GENMASK(6, 4)
+#define   DPHY_ANA0_LPTX_SETR		DPY_GENMASK(2, 0)
+
+#define DPHY_ANA1			0x050
+#define   DPHY_ANA1_VTTMODE		DPY_BIT(31)
+#define   DPHY_ANA1_CSMPS		DPY_GENMASK(29, 28)
+#define   DPHY_ANA1_SVTT		DPY_GENMASK(27, 24)
+
+#define DPHY_ANA2			0x054
+#define   DPHY_ANA2_ENP2S_CPU		DPY_GENMASK(27, 24)
+#define   DPHY_ANA2_ENCK_CPU		DPY_BIT(4)
+#define   DPHY_ANA2_ENIB		DPY_BIT(1)
+
+#define DPHY_ANA3			0x058
+#define   DPHY_ANA3_ENVTTD		DPY_GENMASK(31, 28)
+#define   DPHY_ANA3_ENVTTC		DPY_BIT(27)
+#define   DPHY_ANA3_ENDIV		DPY_BIT(26)
+#define   DPHY_ANA3_ENLDOC		DPY_BIT(25)
+#define   DPHY_ANA3_ENLDOD		DPY_BIT(24)
+#define   DPHY_ANA3_ENLDOR		DPY_BIT(18)
+
+#define DPHY_ANA4			0x05c
+#define   DPHY_ANA4_EN_MIPI		DPY_BIT(31)
+#define   DPHY_ANA4_IB			DPY_GENMASK(26, 24)
+#define   DPHY_ANA4_VRES_SET		DPY_GENMASK(22, 20)
+#define   DPHY_ANA4_VTT_SET		DPY_GENMASK(18, 16)
+#define   DPHY_ANA4_VLPTX_SET		DPY_GENMASK(14, 12)
+#define   DPHY_ANA4_VLV_SET		DPY_GENMASK(10, 8)
+#define   DPHY_ANA4_EN_RESCAL		DPY_BIT(7)
+#define   DPHY_ANA4_EN_SOFT_RCAL	DPY_BIT(5)
+#define   DPHY_ANA4_SOFT_RCAL		DPY_GENMASK(4, 0)
+
+/* PLL: clk_hs = 24MHz * N / (P+1) / (M0+1) / (M1+1)
+ *      clk_ls = 24MHz * N / (P+1) / (DIV0+1) / (DIV1+1) */
+#define DPHY_PLL0			0x104
+#define   DPHY_PLL0_REG_UPDATE		DPY_BIT(31)
+#define   DPHY_PLL0_LS_DIV0		DPY_GENMASK(29, 28)
+#define   DPHY_PLL0_LS_DIV1		DPY_GENMASK(27, 24)
+#define   DPHY_PLL0_CP36_EN		DPY_BIT(23)
+#define   DPHY_PLL0_LDO_EN		DPY_BIT(22)
+#define   DPHY_PLL0_EN_LVS		DPY_BIT(21)
+#define   DPHY_PLL0_PLL_EN		DPY_BIT(20)
+#define   DPHY_PLL0_P			DPY_GENMASK(19, 16)
+#define   DPHY_PLL0_N			DPY_GENMASK(15, 8)
+#define   DPHY_PLL0_M0			DPY_GENMASK(5, 4)
+#define   DPHY_PLL0_M1			DPY_GENMASK(3, 0)
+#define DPHY_PLL1			0x108
+#define   DPHY_PLL1_HS_GATING		DPY_BIT(22)
+#define   DPHY_PLL1_LS_GATING		DPY_BIT(21)
+#define   DPHY_PLL1_LOCKDET_EN		DPY_BIT(12)
+#define DPHY_PLL2			0x10c
+#define   DPHY_PLL2_SDM_EN		DPY_BIT(31)
+#define   DPHY_PLL2_FF_EN		DPY_BIT(30)
+#define   DPHY_PLL2_SS_EN		DPY_BIT(29)
+
+#define COMBO_PHY_REG0			0x110
+#define   COMBO_PHY_EN_MIPI		DPY_BIT(3)
+#define   COMBO_PHY_EN_LVDS		DPY_BIT(2)
+#define   COMBO_PHY_EN_LDO		DPY_BIT(1)
+#define   COMBO_PHY_EN_CP		DPY_BIT(0)
+#define COMBO_PHY_REG1			0x114
+#define   COMBO_PHY_VREF1P6		DPY_GENMASK(6, 4)
+#define   COMBO_PHY_VREF0P8		DPY_GENMASK(2, 0)
+#define COMBO_PHY_REG2			0x118
+#define   COMBO_PHY_HS_STOP_DLY		DPY_GENMASK(7, 0)
+
+#endif /* __COMBO_DPHY_REGS_H__ */

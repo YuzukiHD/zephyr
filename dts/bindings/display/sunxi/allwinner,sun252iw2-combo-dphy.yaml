@@ -1,0 +1,12 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner F101 combo D-PHY shared by the DSI and LVDS outputs.
+
+compatible: "allwinner,sun252iw2-combo-dphy"
+
+include: sunxi-display-common.yaml
+
+properties:
+  reg:
+    required: true

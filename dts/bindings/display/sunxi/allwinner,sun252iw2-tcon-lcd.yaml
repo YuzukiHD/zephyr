@@ -1,0 +1,20 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner F101 LCD timing controller (TCON LCD).
+
+compatible: "allwinner,sun252iw2-tcon-lcd"
+
+include: sunxi-display-ports.yaml
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  top:
+    type: phandle
+    required: true
+    description: Display interface top block of the TCON.

@@ -1,0 +1,47 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+# Properties shared by the panels driven by the display pipeline. The
+# modes come from children with compatible "zephyr,panel-timing" (see
+# display/panel/panel-timing.yaml); hsync-active / vsync-active / de-active
+# and pixelclk-active select the signal polarities.
+
+include: [display-controller.yaml, base.yaml]
+
+properties:
+  width-mm:
+    type: int
+    description: Physical width of the active area in millimetres.
+
+  height-mm:
+    type: int
+    description: Physical height of the active area in millimetres.
+
+  backlight:
+    type: phandle
+    description: Backlight controlled with the panel.
+
+  enable-delay-ms:
+    type: int
+    default: 0
+    description: Delay between starting the link and switching the backlight on.
+
+  disable-delay-ms:
+    type: int
+    default: 0
+
+  power-on-sequence:
+    type: array
+    description: |
+      Commands run before the link starts, built with the SUNXI_CMD_*
+      macros of dt-bindings/display/sunxi-display.h.
+
+  power-off-sequence:
+    type: array
+
+  init-sequence:
+    type: array
+    description: Commands run after the link is up (DSI DCS/generic or SPI).
+
+  exit-sequence:
+    type: array

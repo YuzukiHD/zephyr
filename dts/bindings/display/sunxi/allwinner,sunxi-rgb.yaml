@@ -1,0 +1,48 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner parallel RGB (HV) output of the TCON LCD.
+
+compatible: "allwinner,sunxi-rgb"
+
+include: [sunxi-display-ports.yaml, pinctrl-device.yaml]
+
+properties:
+  hv-mode:
+    type: int
+    default: 0
+    description: SUNXI_HV_* interface mode.
+
+  serial-rgb-sequence:
+    type: int
+    default: 0
+
+  serial-yuv-sequence:
+    type: int
+    default: 0
+
+  serial-yuv-first-delay:
+    type: int
+    default: 0
+
+  rgb-swap:
+    type: int
+    default: 0
+    description: Output colour component permutation (TCON RGB_SWAP).
+
+  rb-swap:
+    type: int
+    default: 0
+
+  clk-phase:
+    type: int
+    default: 0
+    description: 0..3, dclk delay/invert selection.
+
+  use-tcon-frm:
+    type: boolean
+    description: Dither in the TCON (FRM) for panels narrower than 8 bit.
+
+  io-adjust:
+    type: int
+    default: 0

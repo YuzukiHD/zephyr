@@ -1,0 +1,50 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+# Output graph of a display pipeline block:
+#
+#   ports {
+#           #address-cells = <1>;
+#           #size-cells = <0>;
+#           port@1 {
+#                   reg = <1>;
+#                   #address-cells = <1>;
+#                   #size-cells = <0>;
+#                   endpoint@0 {
+#                           reg = <0>;
+#                           remote-endpoint = <&sink>;
+#                   };
+#           };
+#   };
+#
+# A link is described once, on the source side; the driver treats it as
+# an undirected connection between (node, port, endpoint) pairs.
+
+include: sunxi-display-common.yaml
+
+child-binding:
+  description: Output ports of the block.
+  child-binding:
+    description: Port, numbered by reg.
+    properties:
+      reg:
+        type: int
+        required: true
+    child-binding:
+      description: Endpoint, numbered by reg, connecting to a sink node.
+      properties:
+        reg:
+          type: int
+          required: true
+        remote-endpoint:
+          type: phandle
+          required: true
+          description: Sink node the endpoint is connected to.
+        remote-port:
+          type: int
+          default: 0
+          description: Port of the sink node.
+        remote-ep:
+          type: int
+          default: 0
+          description: Endpoint of the sink port.

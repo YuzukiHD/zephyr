@@ -1,0 +1,13 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: On/off panel backlight driven by a GPIO.
+
+compatible: "gpio-backlight"
+
+include: base.yaml
+
+properties:
+  enable-gpios:
+    type: phandle-array
+    required: true

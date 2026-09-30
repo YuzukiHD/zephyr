@@ -1,0 +1,24 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner LVDS output of the TCON LCD (uses the combo D-PHY).
+
+compatible: "allwinner,sunxi-lvds"
+
+include: [sunxi-display-ports.yaml, pinctrl-device.yaml]
+
+properties:
+  resets:
+    required: true
+
+  phy:
+    type: phandle
+    required: true
+    description: Combo D-PHY of the LVDS link.
+
+  dual-link:
+    type: boolean
+    description: Drive two LVDS links.
+
+  use-tcon-frm:
+    type: boolean

@@ -1,0 +1,46 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Simple RGB or LVDS panel driven by the display pipeline.
+
+compatible: "panel-simple"
+
+include: panel-common.yaml
+
+properties:
+  bus-format:
+    type: string
+    required: true
+    enum:
+      - "rgb888-1x24"
+      - "rgb666-1x18"
+      - "rgb565-1x16"
+      - "rgb666-1x7x3-spwg"
+      - "rgb888-1x7x4-spwg"
+      - "rgb888-1x7x4-jeida"
+    description: Pixel format on the wire between the encoder and the panel.
+
+  spi-mode:
+    type: string
+    enum:
+      - "none"
+      - "3wire-9bit"
+      - "4wire-8bit"
+    default: "none"
+    description: Bit-banged SPI used by init-sequence SPI commands.
+
+  spi-cs-gpios:
+    type: phandle-array
+
+  spi-sck-gpios:
+    type: phandle-array
+
+  spi-sda-gpios:
+    type: phandle-array
+
+  spi-dc-gpios:
+    type: phandle-array
+
+  spi-half-period-us:
+    type: int
+    default: 1
