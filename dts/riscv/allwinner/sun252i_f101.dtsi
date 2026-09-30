@@ -213,6 +213,20 @@
 			status = "disabled";
 		};
 
+		g2d: g2d@5410000 {
+			compatible = "allwinner,sunxi-g2d";
+			reg = <0x05410000 0x40000>;
+			interrupts = <111 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_G2D>, <&cctl CLK_BUS_G2D>, <&cctl CLK_BUS_G2D_M>;
+			clock-names = "mod", "bus", "mbus";
+			resets = <&rctl RST_BUS_G2D>;
+			ccu-base = <0x02001000>;
+			mod-clk-reg = <0x630>;
+			clock-frequency = <300000000>;
+			status = "disabled";
+		};
+
 		pwm_bl: pwm@200a000 {
 			compatible = "allwinner,sunxi-pwm-bl";
 			#pwm-cells = <3>;

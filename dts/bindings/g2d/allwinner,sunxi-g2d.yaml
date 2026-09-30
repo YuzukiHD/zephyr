@@ -1,0 +1,54 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Allwinner G2D 2D graphics accelerator (mixer with fill, blit, blend,
+  scaling and format conversion, plus a rotate/flip engine). Commands are
+  queued to the hardware through a register command queue in memory.
+
+compatible: "allwinner,sunxi-g2d"
+
+include: base.yaml
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  clocks:
+    type: phandle-array
+    required: true
+
+  clock-names:
+    type: string-array
+    required: true
+    description: Gates of the "mod", "bus" and "mbus" clocks, in this order.
+
+  resets:
+    type: phandle-array
+    required: true
+
+  ccu-base:
+    type: int
+    required: true
+    description: Base address of the CCU holding the module clock register.
+
+  mod-clk-reg:
+    type: int
+    required: true
+    description: |
+      CCU offset of the G2D module clock register (mux 26:24, divider 4:0,
+      gate 31). The mux is set to PLL_PERI_2X and the divider is chosen from
+      clock-frequency.
+
+  clock-frequency:
+    type: int
+    default: 300000000
+    description: Module clock rate in Hz.
+
+  queue-depth:
+    type: int
+    default: 8
+    description: Number of operations that can be queued.
