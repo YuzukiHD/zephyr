@@ -75,11 +75,13 @@ int main(void)
 			dump_plane("C", frame.plane[1], frame.stride[1], frame.width, frame.height / 2);
 		}
 		if (i == 2) {
+			/* the display reads the picture while it is shown: keep the frame */
 			printk("show: %d\n", vdec_show(&frame, false));
+			printk("jpeg decode done\n");
+			k_sleep(K_FOREVER);
 		}
 		vdec_frame_release(dev, &frame);
 	}
-	printk("jpeg decode done\n");
 
 	return 0;
 }

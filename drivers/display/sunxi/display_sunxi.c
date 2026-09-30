@@ -18,6 +18,7 @@
 #include <zephyr/cache.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/display.h>
+#include <zephyr/drivers/display/display_sunxi.h>
 #include <zephyr/logging/log.h>
 
 #include <hal/display/display_engine.h>
@@ -51,6 +52,8 @@ struct sunxi_display_data {
 	uint32_t stride;
 	uint8_t brightness;
 	bool blanked;
+	/* plane that scans out YCbCr pictures, -1 when there is none */
+	int video_plane;
 };
 
 static int sunxi_display_write(const struct device *dev, const uint16_t x,
@@ -153,6 +156,119 @@ static int sunxi_display_show_framebuffer(struct sunxi_display_data *data)
 	return display_submit(&state);
 }
 
+/* The first plane that takes YCbCr and scales; it is not the frame buffer plane */
+static int sunxi_display_find_video_plane(void)
+{
+	struct display_caps caps;
+	struct display_plane_caps pc;
+
+	if (display_get_caps(&caps) != 0) {
+		return -1;
+	}
+	for (uint32_t id = 0; id < caps.plane_count; id++) {
+		if (id == SUNXI_FB_PLANE || display_get_plane_caps(id, &pc) != 0) {
+			continue;
+		}
+		if ((pc.flags & DISPLAY_PLANE_CAP_YUV) && (pc.flags & DISPLAY_PLANE_CAP_SCALE)) {
+			return id;
+		}
+	}
+
+	return -1;
+}
+
+static void sunxi_display_fb_plane(struct sunxi_display_data *data, struct display_plane_state *p,
+				   bool enable)
+{
+	memset(p, 0, sizeof(*p));
+	p->enable = enable;
+	p->plane_id = SUNXI_FB_PLANE;
+	p->alpha = 0xff;
+	p->blend_mode = DISPLAY_BLEND_NONE;
+	p->framebuffer.address = (uintptr_t)sunxi_fb;
+	p->framebuffer.plane_address[0] = (uintptr_t)sunxi_fb;
+	p->framebuffer.plane_stride[0] = data->stride;
+	p->framebuffer.plane_count = 1;
+	p->framebuffer.format = SUNXI_DISPLAY_FORMAT;
+	p->framebuffer.width = data->width;
+	p->framebuffer.height = data->height;
+	p->framebuffer.stride = data->stride;
+	p->destination.width = data->width;
+	p->destination.height = data->height;
+}
+
+int display_sunxi_show_yuv(const struct device *dev, const struct display_sunxi_yuv *img)
+{
+	struct sunxi_display_data *data = dev->data;
+	struct display_pipeline_state state;
+	struct display_plane_state *v, *fb;
+	uint32_t dw, dh;
+
+	if (data->video_plane < 0) {
+		return -ENOTSUP;
+	}
+
+	/* largest size that fits the screen and keeps the shape of the picture */
+	if ((uint64_t)data->width * img->height <= (uint64_t)data->height * img->width) {
+		dw = data->width;
+		dh = (uint64_t)img->height * data->width / img->width;
+	} else {
+		dh = data->height;
+		dw = (uint64_t)img->width * data->height / img->height;
+	}
+	dw &= ~1U;
+	dh &= ~1U;
+
+	display_pipeline_state_init(&state);
+	state.plane_count = 2;
+	fb = &state.planes[0];
+	sunxi_display_fb_plane(data, fb, false);
+	v = &state.planes[1];
+	memset(v, 0, sizeof(*v));
+	v->enable = true;
+	v->plane_id = data->video_plane;
+	v->alpha = 0xff;
+	v->blend_mode = DISPLAY_BLEND_NONE;
+	v->color_encoding = img->bt709 ? DISPLAY_COLOR_BT709 : DISPLAY_COLOR_BT601;
+	v->color_range = img->full_range ? DISPLAY_RANGE_FULL : DISPLAY_RANGE_LIMITED;
+	v->framebuffer.address = (uintptr_t)img->y;
+	v->framebuffer.plane_address[0] = (uintptr_t)img->y;
+	v->framebuffer.plane_address[1] = (uintptr_t)img->uv;
+	v->framebuffer.plane_stride[0] = img->stride_y;
+	v->framebuffer.plane_stride[1] = img->stride_uv;
+	v->framebuffer.plane_count = 2;
+	v->framebuffer.format = img->nv21 ? DISPLAY_FORMAT_NV21 : DISPLAY_FORMAT_NV12;
+	v->framebuffer.width = img->width;
+	v->framebuffer.height = img->height;
+	v->framebuffer.stride = img->stride_y;
+	v->source.width = img->width;
+	v->source.height = img->height;
+	v->destination.x = (data->width - dw) / 2;
+	v->destination.y = (data->height - dh) / 2;
+	v->destination.width = dw;
+	v->destination.height = dh;
+
+	return display_submit_ex(&state, DISPLAY_SUBMIT_PARTIAL);
+}
+
+int display_sunxi_hide_yuv(const struct device *dev)
+{
+	struct sunxi_display_data *data = dev->data;
+	struct display_pipeline_state state;
+
+	if (data->video_plane < 0) {
+		return -ENOTSUP;
+	}
+	display_pipeline_state_init(&state);
+	state.plane_count = 2;
+	sunxi_display_fb_plane(data, &state.planes[0], true);
+	memset(&state.planes[1], 0, sizeof(state.planes[1]));
+	state.planes[1].plane_id = data->video_plane;
+	state.planes[1].enable = false;
+
+	return display_submit_ex(&state, DISPLAY_SUBMIT_PARTIAL);
+}
+
 static int sunxi_display_init(const struct device *dev)
 {
 	struct sunxi_display_data *data = dev->data;
@@ -197,8 +313,10 @@ static int sunxi_display_init(const struct device *dev)
 		return ret;
 	}
 
-	LOG_INF("%ux%u @ %u Hz, fb %p", mode.width, mode.height,
-		mode.refresh_hz, (void *)sunxi_fb);
+	data->video_plane = sunxi_display_find_video_plane();
+
+	LOG_INF("%ux%u @ %u Hz, fb %p, video plane %d", mode.width, mode.height,
+		mode.refresh_hz, (void *)sunxi_fb, data->video_plane);
 	return 0;
 }
 

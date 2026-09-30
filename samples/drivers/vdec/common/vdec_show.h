@@ -5,9 +5,13 @@
  */
 
 /*
- * Put a decoded frame on the screen: the 2D accelerator converts it to the
- * display format, scales it up by an integer factor to fit and centres it on a
- * black screen, then the picture is written to the display.
+ * Put a decoded frame on the screen.
+ *
+ * A YCbCr frame goes straight to a video plane of the display engine, which
+ * converts and scales it while scanning out; the frame memory must stay valid
+ * while it is shown. An RGBA frame is converted to the display format and
+ * scaled up by an integer factor by the 2D accelerator, centred on a black
+ * screen and written to the display.
  */
 
 #ifndef SAMPLES_DRIVERS_VDEC_COMMON_VDEC_SHOW_H_
@@ -17,6 +21,7 @@
 #include <stdlib.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/display.h>
+#include <zephyr/drivers/display/display_sunxi.h>
 #include <zephyr/drivers/g2d.h>
 #include <zephyr/drivers/vdec.h>
 #include <zephyr/sys/printk.h>
@@ -34,7 +39,26 @@ static inline int vdec_show(const struct vdec_frame *frame, bool blend_over_blac
 	void *screen;
 	int ret;
 
-	if (!device_is_ready(disp) || g2d == NULL || !device_is_ready(g2d)) {
+	if (!device_is_ready(disp)) {
+		return -ENODEV;
+	}
+	if (frame->format != VDEC_FORMAT_RGBA8888) {
+		struct display_sunxi_yuv yuv = {
+			.y = frame->plane[0],
+			.uv = frame->plane[1],
+			.nv21 = frame->format == VDEC_FORMAT_NV21,
+			.width = frame->width,
+			.height = frame->height,
+			.stride_y = frame->stride[0],
+			.stride_uv = frame->stride[1],
+			.full_range = true, /* JPEG */
+		};
+
+		ret = display_sunxi_show_yuv(disp, &yuv);
+		display_blanking_off(disp);
+		return ret;
+	}
+	if (g2d == NULL || !device_is_ready(g2d)) {
 		return -ENODEV;
 	}
 	display_get_capabilities(disp, &caps);
@@ -63,21 +87,11 @@ static inline int vdec_show(const struct vdec_frame *frame, bool blend_over_blac
 	dst.plane[0] = screen;
 	dst.pitch[0] = caps.x_resolution * bpp;
 
-	if (frame->format == VDEC_FORMAT_RGBA8888) {
-		/* R, G, B, A bytes in memory are the word 0xAABBGGRR */
-		src.format = G2D_PIXFMT_ABGR8888;
-		src.plane[0] = frame->plane[0];
-		src.pitch[0] = frame->stride[0];
-		src.width = frame->stride[0] / 4;
-	} else {
-		src.format = frame->format == VDEC_FORMAT_NV21 ? G2D_PIXFMT_NV21 : G2D_PIXFMT_NV12;
-		src.plane[0] = frame->plane[0];
-		src.plane[1] = frame->plane[1];
-		src.pitch[0] = frame->stride[0];
-		src.pitch[1] = frame->stride[1];
-		src.width = frame->stride[0];
-		flags |= G2D_FLAG_YUV_FULL_RANGE;
-	}
+	/* R, G, B, A bytes in memory are the word 0xAABBGGRR */
+	src.format = G2D_PIXFMT_ABGR8888;
+	src.plane[0] = frame->plane[0];
+	src.pitch[0] = frame->stride[0];
+	src.width = frame->stride[0] / 4;
 	src.height = frame->height;
 
 	ret = g2d_fill(g2d, &dst, &full, 0xff000000);
