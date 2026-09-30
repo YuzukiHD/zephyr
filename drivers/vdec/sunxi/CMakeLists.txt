@@ -29,3 +29,6 @@ endif()
 # The archive lists some members twice, so it is linked as a plain archive
 # (members pulled on demand) rather than whole.
 zephyr_link_libraries(${_cedarc_lib})
+
+# the archive prints through printf(): route it into the Zephyr log (glue_libc.c)
+zephyr_link_libraries(-Wl,--wrap=printf)
