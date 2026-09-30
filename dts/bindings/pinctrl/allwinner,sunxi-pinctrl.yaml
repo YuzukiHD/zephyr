@@ -68,3 +68,8 @@ child-binding:
       bias-disable:
         type: boolean
         description: Disable the internal pull resistor.
+      allwinner,drive-level:
+        type: int
+        description: |
+          Pad drive level (0..3). Not applied by the pinctrl driver; used by
+          the display pipeline for its LVDS/DSI lanes.

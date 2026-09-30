@@ -79,6 +79,43 @@
 /* DMA reset, reset line in DMA_BGR_REG (0x070C) */
 #define RST_BUS_DMA			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x070c, 16)
 
+/*
+ * Display clocks, resets and PLL outputs.
+ *
+ * Module clocks use the gate bit of their clock register (bit 31), bus
+ * clocks the gate bit of the bus gating/reset register (bit 0) and the
+ * matching reset the bit 16 of the same register. PLL outputs derived by
+ * a divider or a gate (PLL_PERI_2X/1X) use a virtual bit number so that
+ * every clock has a distinct id.
+ */
+#define CLK_PLL_PERI_2X			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0020, 16)
+#define CLK_PLL_PERI_1X			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0020, 17)
+#define CLK_PLL_VIDEO0_4X		ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0040, 31)
+
+#define CLK_DE				ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0600, 31)
+#define CLK_BUS_DE			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x060c, 0)
+#define RST_BUS_DE			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x060c, 16)
+
+#define CLK_COMBOPHY0			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0aa0, 31)
+#define CLK_BUS_COMBOPHY0		ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0aa4, 0)
+
+#define CLK_BUS_DPSS_TOP		ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0abc, 0)
+#define RST_BUS_DPSS_TOP		ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0abc, 16)
+
+#define CLK_DSI				ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0b24, 31)
+#define CLK_BUS_DSI			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0b4c, 0)
+#define RST_BUS_DSI			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0b4c, 16)
+
+#define CLK_TCONLCD			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0b60, 31)
+#define CLK_BUS_TCONLCD			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0b7c, 0)
+#define RST_BUS_TCONLCD			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0b7c, 16)
+
+#define RST_BUS_LVDS0			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0bac, 16)
+
+#define CLK_PWM_BL			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0790, 31)
+#define CLK_BUS_PWM_BL			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0794, 0)
+#define RST_BUS_PWM_BL			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0794, 16)
+
 /* Clock / reset register offsets in the main CCU, used by the dtsi */
 #define SUN252I_F101_CCU_UART_BGR_REG	0x090c
 #define SUN252I_F101_CCU_APB_UART_REG	0x0528
