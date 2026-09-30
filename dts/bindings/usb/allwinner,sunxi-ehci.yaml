@@ -1,0 +1,38 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Allwinner sunxi USB 2.0 host controllers: an EHCI controller and the OHCI
+  companion that serves low and full speed devices. They share the UTMI PHY
+  with the OTG device controller.
+
+compatible: "allwinner,sunxi-ehci"
+
+include: [base.yaml, reset-device.yaml]
+
+properties:
+  reg:
+    required: true
+
+  reg-names:
+    required: true
+
+  interrupts:
+    required: true
+
+  interrupt-names:
+    required: true
+
+  clocks:
+    type: phandle-array
+    required: true
+
+  clock-names:
+    type: string-array
+    required: true
+    description: Bus gates of the "ehci" and "ohci" blocks, in this order.
+
+  phys:
+    type: phandle-array
+    required: true
+    description: UTMI PHY used by the controllers.

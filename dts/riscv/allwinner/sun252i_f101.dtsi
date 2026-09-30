@@ -251,6 +251,21 @@
 			status = "disabled";
 		};
 
+		usbhci: usb@4101000 {
+			compatible = "allwinner,sunxi-ehci";
+			/* EHCI and OHCI register windows */
+			reg = <0x04101000 0x100>, <0x04101400 0x100>;
+			reg-names = "ehci", "ohci";
+			interrupts = <30 1>, <31 1>;
+			interrupt-names = "ehci", "ohci";
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_BUS_USB_EHCI>, <&cctl CLK_BUS_USB_OHCI>;
+			clock-names = "ehci", "ohci";
+			resets = <&rctl RST_BUS_USB_EHCI>, <&rctl RST_BUS_USB_OHCI>;
+			phys = <&usbphy>;
+			status = "disabled";
+		};
+
 		pwm_bl: pwm@200a000 {
 			compatible = "allwinner,sunxi-pwm-bl";
 			#pwm-cells = <3>;

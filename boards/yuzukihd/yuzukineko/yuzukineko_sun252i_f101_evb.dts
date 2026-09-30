@@ -220,8 +220,17 @@
 	status = "okay";
 };
 
-/* USB 2.0 OTG port, device mode. The PHY is shared with the host controllers. */
+/*
+ * USB 2.0 port: the OTG (device) controller and the EHCI/OHCI host controllers
+ * share one PHY, an application starts the stack of the role it needs. PE02
+ * drives VBUS for the host role.
+ */
 &usbphy {
+	vbus-gpios = <&gpioe 2 0>;
+	status = "okay";
+};
+
+&usbhci {
 	status = "okay";
 };
 
