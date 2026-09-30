@@ -18,9 +18,13 @@ zephyr_library_sources(
   glue/glue_mem.c
 )
 
-set(_cedarc_lib ${CONFIG_VDEC_SUNXI_LIBCEDARC_DIR}/library/sun252iw2p1/riscv32/libcedarc.a)
+if(CONFIG_VDEC_SUNXI_LIBCEDARC_PATH STREQUAL "")
+  set(_cedarc_lib ${CMAKE_CURRENT_LIST_DIR}/lib/libcedarc.a)
+else()
+  set(_cedarc_lib ${CONFIG_VDEC_SUNXI_LIBCEDARC_PATH})
+endif()
 if(NOT EXISTS ${_cedarc_lib})
-  message(FATAL_ERROR "CONFIG_VDEC_SUNXI_LIBCEDARC_DIR: ${_cedarc_lib} not found")
+  message(FATAL_ERROR "decoder archive ${_cedarc_lib} not found")
 endif()
 # The archive lists some members twice, so it is linked as a plain archive
 # (members pulled on demand) rather than whole.

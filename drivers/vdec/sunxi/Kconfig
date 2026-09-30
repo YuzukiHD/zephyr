@@ -9,18 +9,17 @@ config VDEC_SUNXI
 	select CACHE_MANAGEMENT
 	help
 	  Hardware JPEG, PNG and H.264 decoding on the sunxi video engine. The
-	  engine specific code is a prebuilt archive that is not part of this
-	  tree; VDEC_SUNXI_LIBCEDARC_DIR tells where to find it. Everything
-	  the archive needs from the system is provided by the glue layer in
-	  drivers/vdec/sunxi/glue.
+	  engine specific code is a prebuilt archive, lib/libcedarc.a (see
+	  VDEC_SUNXI_LIBCEDARC_PATH). Everything the archive needs from the
+	  system is provided by the glue layer in drivers/vdec/sunxi/glue.
 
 if VDEC_SUNXI
 
-config VDEC_SUNXI_LIBCEDARC_DIR
-	string "Directory of the prebuilt decoder archive"
+config VDEC_SUNXI_LIBCEDARC_PATH
+	string "Path of the prebuilt decoder archive"
 	help
-	  Directory holding library/sun252iw2p1/riscv32/libcedarc.a. The build
-	  fails when the archive is missing.
+	  Empty uses lib/libcedarc.a next to this file. The build fails when
+	  the archive is missing.
 
 config VDEC_SUNXI_JPEG
 	bool "JPEG decoder"
