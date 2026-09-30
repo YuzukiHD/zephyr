@@ -19,7 +19,7 @@ zephyr_library_sources(
 )
 
 if(CONFIG_VDEC_SUNXI_LIBCEDARC_PATH STREQUAL "")
-  set(_cedarc_lib ${CMAKE_CURRENT_LIST_DIR}/lib/libcedarc.a)
+  set(_cedarc_lib ${CMAKE_CURRENT_LIST_DIR}/lib/libcedarc)
 else()
   set(_cedarc_lib ${CONFIG_VDEC_SUNXI_LIBCEDARC_PATH})
 endif()
