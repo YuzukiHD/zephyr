@@ -19,4 +19,6 @@ module = G2D
 module-str = g2d
 source "subsys/logging/Kconfig.template.log_config"
 
+rsource "Kconfig.sunxi"
+
 endif # G2D

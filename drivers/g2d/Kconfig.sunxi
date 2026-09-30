@@ -1,0 +1,27 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config G2D_SUNXI
+	bool "Allwinner sunxi G2D"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_G2D_ENABLED
+	select CACHE_MANAGEMENT
+	help
+	  Driver of the Allwinner G2D (mixer and rotate engine fed by a
+	  register command queue). The driver is GPL-2.0-or-later.
+
+if G2D_SUNXI
+
+config G2D_SUNXI_THREAD_STACK_SIZE
+	int "Stack size of the G2D worker thread"
+	default 2048
+
+config G2D_SUNXI_THREAD_PRIORITY
+	int "Priority of the G2D worker thread"
+	default 5
+
+config G2D_SUNXI_TIMEOUT_MS
+	int "Time in milliseconds one operation may take"
+	default 100
+
+endif # G2D_SUNXI
