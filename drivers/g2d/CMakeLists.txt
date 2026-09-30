@@ -2,6 +2,7 @@
 
 zephyr_library()
 zephyr_library_sources(g2d_common.c)
+zephyr_library_sources_ifdef(CONFIG_G2D_SHELL g2d_shell.c)
 
 if(CONFIG_G2D_SUNXI)
   zephyr_library_sources(

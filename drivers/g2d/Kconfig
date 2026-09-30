@@ -15,6 +15,14 @@ config G2D_INIT_PRIORITY
 	help
 	  Initialization priority of the G2D drivers in the POST_KERNEL level.
 
+config G2D_SHELL
+	bool "G2D shell commands (g2d ...)"
+	depends on SHELL
+	default y
+	help
+	  "g2d info|fill|blit|blend|bench" to exercise the accelerator and
+	  compare it with the CPU.
+
 module = G2D
 module-str = g2d
 source "subsys/logging/Kconfig.template.log_config"
