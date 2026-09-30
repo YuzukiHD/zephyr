@@ -1,0 +1,25 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config USB_PHY_SUNXI
+	bool "Allwinner sunxi USB 2.0 PHY driver"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_USB_PHY_ENABLED
+	depends on CLOCK_CONTROL && RESET && GPIO
+	help
+	  Clock, reset and routing of the UTMI PHY shared by the OTG device
+	  controller and the host controllers.
+
+if USB_PHY_SUNXI
+
+config USB_PHY_SUNXI_INIT_PRIORITY
+	int "PHY init priority"
+	default 40
+	help
+	  Must come before the controllers that use the PHY.
+
+module = USB_PHY_SUNXI
+module-str = usb phy sunxi
+source "subsys/logging/Kconfig.template.log_config"
+
+endif # USB_PHY_SUNXI
