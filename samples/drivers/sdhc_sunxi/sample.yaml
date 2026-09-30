@@ -1,0 +1,12 @@
+sample:
+  name: Allwinner SMHC SD card test
+tests:
+  sample.drivers.sdhc_sunxi:
+    platform_allow:
+      - yuzukineko/sun252i_f101/evb
+    tags: sdhc
+    harness: console
+    harness_config:
+      type: one_line
+      regex:
+        - "SD test done"

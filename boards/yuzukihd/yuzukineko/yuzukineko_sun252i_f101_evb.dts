@@ -37,6 +37,21 @@
 		};
 	};
 
+	smhc0_pins: smhc0_pins {
+		smhc0_clk {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PF, 2, 2)>;
+			bias-disable;
+		};
+		smhc0_cmd_data {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PF, 3, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PF, 1, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PF, 0, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PF, 5, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PF, 4, 2)>;
+			bias-pull-up;
+		};
+	};
+
 	pwm_bl_pins: pwm_bl_pins {
 		pwm_bl_group {
 			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 0, 2)
@@ -236,4 +251,22 @@
 
 &usbotg {
 	status = "okay";
+};
+
+/*
+ * TF card slot on SMHC0 (4 bit, card detect on PF06, low with a card in). SMHC2
+ * (the WiFi SDIO port) stays off: its clock pin PE02 is the USB VBUS switch.
+ */
+&smhc0 {
+	pinctrl-0 = <&smhc0_pins>;
+	pinctrl-names = "default";
+	bus-width = <4>;
+	cd-gpios = <&gpiof 6 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	sdmmc {
+		compatible = "zephyr,sdmmc-disk";
+		disk-name = "SD";
+		status = "okay";
+	};
 };
