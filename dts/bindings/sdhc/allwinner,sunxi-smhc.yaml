@@ -1,0 +1,52 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner sunxi SD/MMC host controller (SMHC)
+
+compatible: "allwinner,sunxi-smhc"
+
+include: [sdhc.yaml, pinctrl-device.yaml]
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  clocks:
+    required: true
+
+  clock-names:
+    required: true
+
+  resets:
+    type: phandle-array
+    required: true
+
+  clock-reg:
+    type: int
+    required: true
+    description: |
+      Offset of the module clock register (source select, divider and gate)
+      in the main CCU.
+
+  bus-width:
+    type: int
+    default: 4
+    enum: [1, 4, 8]
+    description: Number of data lines wired to the slot.
+
+  cd-gpios:
+    type: phandle-array
+    description: |
+      Card detect GPIO. Use GPIO_ACTIVE_LOW when the line is low with a card
+      inserted.
+
+  pwr-gpios:
+    type: phandle-array
+    description: GPIO enabling the card supply (optional).
+
+  non-removable:
+    type: boolean
+    description: The card is soldered (eMMC, SDIO module); always present.

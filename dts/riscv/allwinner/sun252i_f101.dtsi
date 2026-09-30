@@ -407,6 +407,32 @@
 			status = "disabled";
 		};
 
+		smhc0: mmc@4020000 {
+			compatible = "allwinner,sunxi-smhc";
+			reg = <0x04020000 0x1000>;
+			interrupts = <40 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_SMHC0>, <&cctl CLK_BUS_SMHC0>;
+			clock-names = "mod", "bus";
+			resets = <&rctl RST_BUS_SMHC0>;
+			clock-reg = <0x830>;
+			max-bus-freq = <50000000>;
+			status = "disabled";
+		};
+
+		smhc2: mmc@4022000 {
+			compatible = "allwinner,sunxi-smhc";
+			reg = <0x04022000 0x1000>;
+			interrupts = <42 1>;
+			interrupt-parent = <&plic>;
+			clocks = <&cctl CLK_SMHC2>, <&cctl CLK_BUS_SMHC2>;
+			clock-names = "mod", "bus";
+			resets = <&rctl RST_BUS_SMHC2>;
+			clock-reg = <0x838>;
+			max-bus-freq = <50000000>;
+			status = "disabled";
+		};
+
 		spi0: spi@4025000 {
 			compatible = "allwinner,sunxi-spi";
 			#address-cells = <1>;
