@@ -1,0 +1,13 @@
+sample:
+  name: G2D accelerator
+  description: Check the hardware 2D operations against a CPU reference
+tests:
+  sample.drivers.g2d:
+    platform_allow:
+      - yuzukineko/sun252i_f101/evb
+    tags: g2d
+    harness: console
+    harness_config:
+      type: one_line
+      regex:
+        - "G2D self test: PASS"
