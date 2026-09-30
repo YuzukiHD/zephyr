@@ -2,6 +2,9 @@
 
 zephyr_library()
 zephyr_library_sources(
+  ve_core.c
+  ve_fifo.c
+  ve_fbm.c
   glue/glue_core.c
   glue/glue_irq.c
   glue/glue_clk.c

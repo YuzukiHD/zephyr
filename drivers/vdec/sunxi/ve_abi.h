@@ -51,6 +51,13 @@ enum ve_pixel_format {
 	VE_PIX_BGRA = 13,
 };
 
+/* Picture buffer type a frame buffer manager is created for */
+enum ve_buffer_type {
+	VE_BUF_REFERENCE_DISPLAY = 0,
+	VE_BUF_ONLY_REFERENCE = 1,
+	VE_BUF_ONLY_DISPLAY = 2,
+};
+
 /* Results of ve_decode() / DecodeVideoStream() */
 enum ve_decode_result {
 	VE_RESULT_UNSUPPORTED = -1,
@@ -481,6 +488,31 @@ struct ve_engine {
 	int init_tr;
 };
 
+/* ---- provided by this driver for the archive and the decoder front end ---- */
+
+struct ve_fifo_node;
+
+void FIFOEnqueue(struct ve_fifo_node **head, struct ve_fifo_node *node);
+struct ve_fifo_node *FIFODequeue(struct ve_fifo_node **head);
+void FIFOEnqueueToHead(struct ve_fifo_node **head, struct ve_fifo_node *node);
+
+struct ve_fbm *FbmCreate(struct ve_fbm_create_info *ci, struct ve_fbm_info *info);
+void FbmDestroy(struct ve_fbm *fbm);
+struct ve_picture *FbmRequestBuffer(struct ve_fbm *fbm);
+void FbmReturnBuffer(struct ve_fbm *fbm, struct ve_picture *pic, int valid);
+void FbmShareBuffer(struct ve_fbm *fbm, struct ve_picture *pic);
+struct ve_picture *FbmRequestPicture(struct ve_fbm *fbm);
+int FbmReturnPicture(struct ve_fbm *fbm, struct ve_picture *pic);
+struct ve_picture *FbmNextPictureInfo(struct ve_fbm *fbm);
+void FbmFlush(struct ve_fbm *fbm);
+int FbmTotalBufferNum(struct ve_fbm *fbm);
+int FbmEmptyBufferNum(struct ve_fbm *fbm);
+int FbmValidPictureNum(struct ve_fbm *fbm);
+int FbmGetDisplayBufferNum(struct ve_fbm *fbm);
+int FbmGetAlignValue(struct ve_fbm *fbm);
+unsigned int FbmGetBufferOffset(struct ve_fbm *fbm, int is_y_buf);
+int FbmGetBufferInfo(struct ve_fbm *fbm, struct ve_picture *pic);
+
 /* ---- entry points of the archive ---- */
 
 struct ve_ops *GetVeOpsS(int type);
@@ -494,6 +526,8 @@ int VideoEngineDecode(struct ve_engine *engine, int end_of_stream, int key_frame
 		      int drop_b_frame_if_delay, int64_t current_time_us);
 int VideoEngineReopen(struct ve_engine *engine, struct ve_vconfig *cfg,
 		      struct ve_stream_info *info);
+int VideoEngineConvert(struct ve_ops *ops, void *ops_self, struct ve_picture *in,
+		       struct ve_picture *out);
 int GetBufferSize(int pixel_format, int width, int height, int *y_size, int *c_size,
 		  int *y_stride, int *c_stride, int align);
 void AddVDPlugin(void);
