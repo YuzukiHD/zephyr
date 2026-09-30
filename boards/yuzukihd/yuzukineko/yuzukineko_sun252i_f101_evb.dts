@@ -219,3 +219,12 @@
 &g2d {
 	status = "okay";
 };
+
+/* USB 2.0 OTG port, device mode. The PHY is shared with the host controllers. */
+&usbphy {
+	status = "okay";
+};
+
+&usbotg {
+	status = "okay";
+};
