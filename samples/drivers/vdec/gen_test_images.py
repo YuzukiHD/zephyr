@@ -4,10 +4,12 @@
 """
 Make the test pictures of the decoder samples and their reference output.
 
-usage: gen_test_images.py <output dir>   (needs Pillow and numpy)
+usage: gen_test_images.py <output dir>   (needs Pillow, numpy and ffmpeg with libx264)
 
-Writes jpeg/src/test_jpeg.h and png/src/test_png.h (C arrays) and the host
-decoded reference pictures (ref_jpeg.rgb, ref_png.rgba) into the output dir.
+Writes jpeg/src/test_jpeg.h, png/src/test_png.h and h264/src/test_h264.h (C
+arrays) and the host decoded reference pictures (ref_jpeg.rgb, ref_png.rgba,
+ref_h264.nv12) into the output dir. test_h264.h also lists the CRC32 of every
+decoded frame (luma then chroma plane) so a board can check itself.
 """
 import math
 import os
@@ -16,6 +18,8 @@ import sys
 from PIL import Image, ImageDraw
 
 import io
+import shutil
+import subprocess
 import zlib
 
 W, H = 320, 240
@@ -58,6 +62,52 @@ def c_array(name, data):
     return "\n".join(lines)
 
 
+FRAMES = 30
+
+
+def ffmpeg_exe():
+    exe = shutil.which("ffmpeg")
+    if exe:
+        return exe
+    import imageio_ffmpeg
+    return imageio_ffmpeg.get_ffmpeg_exe()
+
+
+def video_frame(n):
+    img = picture(False)
+    d = ImageDraw.Draw(img)
+    # a box moving across and a frame counter
+    x = 10 + n * (W - 60) // (FRAMES - 1)
+    d.rectangle([x, 100, x + 40, 140], fill=(255, 255, 0), outline=(0, 0, 0))
+    d.text((W - 60, 8), "N=%02d" % n, fill=(0, 0, 0))
+    return img
+
+
+def make_h264(out, here):
+    raw = b"".join(video_frame(n).tobytes() for n in range(FRAMES))
+    ff = ffmpeg_exe()
+    base = [ff, "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "%dx%d" % (W, H),
+            "-r", "30", "-i", "-"]
+    # baseline-like tools, no B frames, an IDR every 10 frames, Annex B byte stream
+    enc = base + ["-c:v", "libx264", "-profile:v", "main", "-bf", "0", "-g", "10", "-crf", "20",
+                  "-preset", "medium", "-x264-params", "keyint=10:min-keyint=10:scenecut=0",
+                  "-pix_fmt", "yuv420p", "-f", "h264", os.path.join(out, "test.h264")]
+    subprocess.run(enc, input=raw, check=True)
+    subprocess.run([ff, "-v", "error", "-y", "-i", os.path.join(out, "test.h264"), "-pix_fmt", "nv12",
+                    "-f", "rawvideo", os.path.join(out, "ref_h264.nv12")], check=True)
+    data = open(os.path.join(out, "test.h264"), "rb").read()
+    nv12 = open(os.path.join(out, "ref_h264.nv12"), "rb").read()
+    fsize = W * H * 3 // 2
+    crcs = [zlib.crc32(nv12[i * fsize:(i + 1) * fsize]) for i in range(len(nv12) // fsize)]
+    os.makedirs(os.path.join(here, "h264/src"), exist_ok=True)
+    text = c_array("test_h264", data)
+    text += "\nstatic const uint32_t test_h264_crc[] = {\n" + "".join(
+        "\t0x%08x,\n" % c for c in crcs) + "};\n"
+    text += "\n#define TEST_H264_WIDTH %d\n#define TEST_H264_HEIGHT %d\n" % (W, H)
+    open(os.path.join(here, "h264/src/test_h264.h"), "w").write(text)
+    print("h264 %d bytes, %d frames" % (len(data), len(crcs)))
+
+
 def main():
     out = sys.argv[1]
     os.makedirs(out, exist_ok=True)
@@ -83,6 +133,7 @@ def main():
     print("png crc32 of the decoder layout: %08x" % zlib.crc32(word))
     open(os.path.join(out, "test.png"), "wb").write(png)
     print("jpeg %d bytes, png %d bytes" % (len(jpg), len(png)))
+    make_h264(out, here)
 
 
 main()

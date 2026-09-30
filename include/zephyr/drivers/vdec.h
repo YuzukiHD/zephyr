@@ -62,11 +62,34 @@ struct vdec_frame {
 	void *priv;
 };
 
+/** A video stream being decoded */
+struct vdec_stream;
+
+/** Stream parameters */
+struct vdec_stream_config {
+	enum vdec_codec codec;
+	/** Wanted frame layout (NV12 or NV21) */
+	enum vdec_format format;
+	/**
+	 * Size of the compressed data buffer in bytes, 0 for the default. It has to hold
+	 * the largest group of NAL units handed to vdec_stream_feed() in one call.
+	 */
+	size_t buffer_size;
+};
+
 /** @cond INTERNAL_HIDDEN */
 __subsystem struct vdec_driver_api {
 	int (*decode_image)(const struct device *dev, enum vdec_codec codec, const void *data,
 			    size_t len, enum vdec_format format, struct vdec_frame *frame);
 	void (*frame_release)(const struct device *dev, struct vdec_frame *frame);
+	int (*stream_open)(const struct device *dev, const struct vdec_stream_config *config,
+			   struct vdec_stream **stream);
+	int (*stream_feed)(const struct device *dev, struct vdec_stream *stream, const void *data,
+			   size_t len, int64_t pts, size_t *consumed);
+	int (*stream_get_frame)(const struct device *dev, struct vdec_stream *stream,
+				struct vdec_frame *frame);
+	int (*stream_flush)(const struct device *dev, struct vdec_stream *stream);
+	void (*stream_close)(const struct device *dev, struct vdec_stream *stream);
 };
 /** @endcond */
 
@@ -99,13 +122,99 @@ static inline int vdec_decode_image(const struct device *dev, enum vdec_codec co
 }
 
 /**
- * @brief Give a frame back and let the decoder be used again
+ * @brief Give a frame back
+ *
+ * For a frame of vdec_decode_image() this also lets the decoder be used again;
+ * for a frame of a stream the picture goes back to the decoder's pool.
  */
 static inline void vdec_frame_release(const struct device *dev, struct vdec_frame *frame)
 {
 	const struct vdec_driver_api *api = (const struct vdec_driver_api *)dev->api;
 
 	api->frame_release(dev, frame);
+}
+
+/**
+ * @brief Start decoding a video stream
+ *
+ * The decoder is claimed by the stream until vdec_stream_close(); other
+ * streams and vdec_decode_image() wait.
+ *
+ * @retval 0 on success
+ * @retval -ENOTSUP the codec or format is not supported
+ * @retval -ENOMEM no memory for the stream
+ */
+static inline int vdec_stream_open(const struct device *dev, const struct vdec_stream_config *config,
+				   struct vdec_stream **stream)
+{
+	const struct vdec_driver_api *api = (const struct vdec_driver_api *)dev->api;
+
+	return api->stream_open(dev, config, stream);
+}
+
+/**
+ * @brief Hand compressed data to a stream
+ *
+ * H.264 data is an Annex B byte stream. @p data must hold whole NAL units; the
+ * call takes as many of them as fit in the stream buffer and reports how many
+ * bytes that was, so call it again with the rest after taking frames out.
+ * Nothing is decoded here, vdec_stream_get_frame() does the work.
+ *
+ * @param pts Presentation time stamp of the data, -1 when there is none
+ * @param consumed Set to the number of bytes taken
+ *
+ * @retval 0 at least one NAL unit was taken
+ * @retval -EAGAIN the stream buffer is full: take frames out first
+ * @retval -EINVAL no NAL unit in the data
+ */
+static inline int vdec_stream_feed(const struct device *dev, struct vdec_stream *stream,
+				   const void *data, size_t len, int64_t pts, size_t *consumed)
+{
+	const struct vdec_driver_api *api = (const struct vdec_driver_api *)dev->api;
+
+	return api->stream_feed(dev, stream, data, len, pts, consumed);
+}
+
+/**
+ * @brief Take the next decoded frame out of a stream
+ *
+ * Decodes what has been fed until a frame is ready. The frame has to be given
+ * back with vdec_frame_release(); the decoder holds only a few frames, so
+ * release them in time.
+ *
+ * @retval 0 a frame was returned
+ * @retval -EAGAIN more data is needed
+ * @retval -EBUSY every frame is held by the application: release some
+ * @retval -ENODATA the stream was flushed and everything has been delivered
+ * @retval -EIO the hardware failed
+ */
+static inline int vdec_stream_get_frame(const struct device *dev, struct vdec_stream *stream,
+					struct vdec_frame *frame)
+{
+	const struct vdec_driver_api *api = (const struct vdec_driver_api *)dev->api;
+
+	return api->stream_get_frame(dev, stream, frame);
+}
+
+/**
+ * @brief Tell the stream that no more data comes
+ *
+ * vdec_stream_get_frame() then delivers the frames still inside the decoder and
+ * finally returns -ENODATA.
+ */
+static inline int vdec_stream_flush(const struct device *dev, struct vdec_stream *stream)
+{
+	const struct vdec_driver_api *api = (const struct vdec_driver_api *)dev->api;
+
+	return api->stream_flush(dev, stream);
+}
+
+/** @brief End a stream; all its frames must have been released */
+static inline void vdec_stream_close(const struct device *dev, struct vdec_stream *stream)
+{
+	const struct vdec_driver_api *api = (const struct vdec_driver_api *)dev->api;
+
+	api->stream_close(dev, stream);
 }
 
 #ifdef __cplusplus

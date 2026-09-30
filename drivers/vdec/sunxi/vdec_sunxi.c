@@ -37,7 +37,19 @@ struct vdec_sunxi_data {
 struct vdec_sunxi_frame {
 	struct ve_decoder *decoder;
 	struct ve_picture *picture;
+	/* the stream the frame belongs to, NULL for a single picture */
+	struct vdec_stream *stream;
 };
+
+struct vdec_stream {
+	struct ve_decoder *decoder;
+	enum vdec_format format;
+	bool eos;
+	int held;
+};
+
+/* give up after this many decoding steps that produced nothing */
+#define STREAM_MAX_STEPS	64
 
 /* ---- picture headers: the engine wants the size up front ---- */
 
@@ -131,6 +143,45 @@ static int result_to_errno(int result)
 	}
 }
 
+/* Describe a picture of the decoder as a frame; the picture is flushed for the CPU */
+static struct vdec_sunxi_frame *make_frame(struct ve_decoder *dec, struct ve_picture *pic,
+					   bool rgba, enum vdec_format format,
+					   struct vdec_stream *stream, struct vdec_frame *frame)
+{
+	struct vdec_sunxi_frame *held = malloc(sizeof(*held));
+
+	if (held == NULL) {
+		return NULL;
+	}
+	held->decoder = dec;
+	held->picture = pic;
+	held->stream = stream;
+
+	LOG_DBG("picture %d: fmt %d %dx%d stride %d crop %d,%d-%d,%d size %d", pic->id,
+		pic->pixel_format, pic->width, pic->height, pic->line_stride, pic->left_offset,
+		pic->top_offset, pic->right_offset, pic->bottom_offset, pic->buf_size);
+
+	/* the engine wrote the picture behind the cache */
+	ve_mem_get_ops()->flush_cache(pic->data0, pic->buf_size);
+
+	memset(frame, 0, sizeof(*frame));
+	frame->format = format;
+	frame->width = pic->right_offset - pic->left_offset;
+	frame->height = pic->bottom_offset - pic->top_offset;
+	frame->stride[0] = pic->line_stride;
+	frame->plane[0] = (uint8_t *)pic->data0 + pic->top_offset * pic->line_stride +
+			  pic->left_offset * (rgba ? 4 : 1);
+	if (!rgba) {
+		frame->stride[1] = pic->line_stride;
+		frame->plane[1] = (uint8_t *)pic->data1 +
+				  (pic->top_offset / 2) * pic->line_stride + pic->left_offset;
+	}
+	frame->pts = pic->pts;
+	frame->priv = held;
+
+	return held;
+}
+
 static int vdec_sunxi_decode_image(const struct device *dev, enum vdec_codec codec,
 				   const void *data, size_t len, enum vdec_format format,
 				   struct vdec_frame *frame)
@@ -222,36 +273,12 @@ static int vdec_sunxi_decode_image(const struct device *dev, enum vdec_codec cod
 		goto err_decoder;
 	}
 
-	held = malloc(sizeof(*held));
+	held = make_frame(dec, pic, codec == VDEC_CODEC_PNG, format, NULL, frame);
 	if (held == NULL) {
 		ve_decoder_return_picture(dec, pic);
 		ret = -ENOMEM;
 		goto err_decoder;
 	}
-	held->decoder = dec;
-	held->picture = pic;
-
-	LOG_DBG("picture %d: fmt %d %dx%d stride %d crop %d,%d-%d,%d size %d", pic->id,
-		pic->pixel_format, pic->width, pic->height, pic->line_stride, pic->left_offset,
-		pic->top_offset, pic->right_offset, pic->bottom_offset, pic->buf_size);
-
-	/* the engine wrote the picture behind the cache */
-	ve_mem_get_ops()->flush_cache(pic->data0, pic->buf_size);
-
-	memset(frame, 0, sizeof(*frame));
-	frame->format = format;
-	frame->width = pic->right_offset - pic->left_offset;
-	frame->height = pic->bottom_offset - pic->top_offset;
-	frame->stride[0] = pic->line_stride;
-	frame->plane[0] = (uint8_t *)pic->data0 + pic->top_offset * pic->line_stride +
-			  pic->left_offset * (codec == VDEC_CODEC_PNG ? 1 : 1);
-	if (codec == VDEC_CODEC_JPEG) {
-		frame->stride[1] = pic->line_stride;
-		frame->plane[1] = (uint8_t *)pic->data1 +
-				  (pic->top_offset / 2) * pic->line_stride + pic->left_offset;
-	}
-	frame->pts = pic->pts;
-	frame->priv = held;
 
 	return 0;
 
@@ -272,11 +299,186 @@ static void vdec_sunxi_frame_release(const struct device *dev, struct vdec_frame
 		return;
 	}
 	ve_decoder_return_picture(held->decoder, held->picture);
-	ve_decoder_destroy(held->decoder);
+	if (held->stream != NULL) {
+		held->stream->held--;
+	} else {
+		/* a single picture owns its decoder */
+		ve_decoder_destroy(held->decoder);
+		k_sem_give(&dd->claim);
+	}
 	free(held);
 	frame->priv = NULL;
 	memset(frame->plane, 0, sizeof(frame->plane));
+}
 
+/* ---- video streams ---- */
+
+static int vdec_sunxi_stream_open(const struct device *dev, const struct vdec_stream_config *config,
+				  struct vdec_stream **out)
+{
+	struct vdec_sunxi_data *dd = dev->data;
+	struct ve_stream_info info = {0};
+	struct ve_vconfig cfg = {0};
+	struct vdec_stream *st;
+
+	if (config->codec != VDEC_CODEC_H264 ||
+	    (config->format != VDEC_FORMAT_NV12 && config->format != VDEC_FORMAT_NV21)) {
+		return -ENOTSUP;
+	}
+
+	k_sem_take(&dd->claim, K_FOREVER);
+	st = calloc(1, sizeof(*st));
+	if (st == NULL) {
+		k_sem_give(&dd->claim);
+		return -ENOMEM;
+	}
+	st->format = config->format;
+	st->decoder = ve_decoder_create();
+	if (st->decoder == NULL) {
+		goto err;
+	}
+
+	info.codec_format = VE_CODEC_H264;
+	cfg.output_pixel_format = config->format == VDEC_FORMAT_NV21 ? VE_PIX_NV21 : VE_PIX_NV12;
+	cfg.display_holding_fb_num = 3;
+	cfg.disp_error_frame = 1;
+	cfg.vbv_buffer_size = config->buffer_size;
+	if (ve_decoder_init(st->decoder, &info, &cfg) != 0) {
+		ve_decoder_destroy(st->decoder);
+		goto err;
+	}
+	*out = st;
+
+	return 0;
+err:
+	free(st);
+	k_sem_give(&dd->claim);
+
+	return -ENOTSUP;
+}
+
+/* Start of the Annex B start code that ends at or contains position i (00 00 01) */
+static const uint8_t *next_start_code(const uint8_t *p, const uint8_t *end)
+{
+	for (const uint8_t *q = p; q + 3 <= end; q++) {
+		if (q[0] == 0 && q[1] == 0 && q[2] == 1) {
+			/* a four byte start code has one more leading zero */
+			return (q > p && q[-1] == 0) ? q - 1 : q;
+		}
+	}
+
+	return NULL;
+}
+
+static int vdec_sunxi_stream_feed(const struct device *dev, struct vdec_stream *st,
+				  const void *data, size_t len, int64_t pts, size_t *consumed)
+{
+	const uint8_t *p = data, *end = p + len, *nal, *next;
+	size_t taken = 0;
+
+	*consumed = 0;
+	nal = next_start_code(p, end);
+	if (nal != p) {
+		return -EINVAL;
+	}
+
+	while (nal != NULL) {
+		struct ve_stream_data sd = {0};
+		char *buf, *ring;
+		int buf_len, ring_len;
+		size_t nal_len;
+
+		/* the NAL unit ends where the next start code begins */
+		next = next_start_code(nal + 3, end);
+		nal_len = (next != NULL ? next : end) - nal;
+
+		if (ve_decoder_request_stream_buffer(st->decoder, nal_len, &buf, &buf_len, &ring,
+						     &ring_len, 0) != 0 ||
+		    buf_len + ring_len < (int)nal_len) {
+			break;
+		}
+		if (buf_len >= (int)nal_len) {
+			memcpy(buf, nal, nal_len);
+		} else {
+			memcpy(buf, nal, buf_len);
+			memcpy(ring, nal + buf_len, nal_len - buf_len);
+		}
+		sd.data = buf;
+		sd.length = nal_len;
+		sd.pts = pts;
+		sd.is_first_part = 1;
+		sd.is_last_part = 1;
+		sd.valid = 1;
+		if (ve_decoder_submit_stream(st->decoder, &sd, 0) != 0) {
+			return -EIO;
+		}
+		taken += nal_len;
+		nal = next;
+	}
+	*consumed = taken;
+
+	return taken > 0 ? 0 : -EAGAIN;
+}
+
+static int vdec_sunxi_stream_get_frame(const struct device *dev, struct vdec_stream *st,
+				       struct vdec_frame *frame)
+{
+	for (int step = 0; step < STREAM_MAX_STEPS; step++) {
+		struct ve_picture *pic;
+		int ret;
+
+		if (ve_decoder_valid_picture_num(st->decoder, 0) > 0) {
+			pic = ve_decoder_request_picture(st->decoder, 0);
+			if (pic != NULL && make_frame(st->decoder, pic, false, st->format, st, frame)) {
+				st->held++;
+				return 0;
+			}
+			if (pic != NULL) {
+				ve_decoder_return_picture(st->decoder, pic);
+			}
+			return -ENOMEM;
+		}
+
+		ret = ve_decoder_decode(st->decoder, st->eos, 0, 0, 0);
+		switch (ret) {
+		case VE_RESULT_OK:
+		case VE_RESULT_FRAME_DECODED:
+		case VE_RESULT_KEYFRAME_DECODED:
+		case VE_RESULT_CONTINUE:
+		case VE_RESULT_RESOLUTION_CHANGE:
+			break;
+		case VE_RESULT_NO_FRAME_BUFFER:
+			return -EBUSY;
+		case VE_RESULT_NO_BITSTREAM:
+			if (ve_decoder_valid_picture_num(st->decoder, 0) > 0) {
+				break;
+			}
+			return st->eos ? -ENODATA : -EAGAIN;
+		default:
+			LOG_ERR("decoding failed: %d", ret);
+			return -EIO;
+		}
+	}
+
+	return -EAGAIN;
+}
+
+static int vdec_sunxi_stream_flush(const struct device *dev, struct vdec_stream *st)
+{
+	st->eos = true;
+
+	return 0;
+}
+
+static void vdec_sunxi_stream_close(const struct device *dev, struct vdec_stream *st)
+{
+	struct vdec_sunxi_data *dd = dev->data;
+
+	if (st->held != 0) {
+		LOG_WRN("stream closed with %d frames still held", st->held);
+	}
+	ve_decoder_destroy(st->decoder);
+	free(st);
 	k_sem_give(&dd->claim);
 }
 
@@ -292,6 +494,11 @@ static int vdec_sunxi_init(const struct device *dev)
 static const struct vdec_driver_api vdec_sunxi_api = {
 	.decode_image = vdec_sunxi_decode_image,
 	.frame_release = vdec_sunxi_frame_release,
+	.stream_open = vdec_sunxi_stream_open,
+	.stream_feed = vdec_sunxi_stream_feed,
+	.stream_get_frame = vdec_sunxi_stream_get_frame,
+	.stream_flush = vdec_sunxi_stream_flush,
+	.stream_close = vdec_sunxi_stream_close,
 };
 
 static struct vdec_sunxi_data vdec_sunxi_data0;

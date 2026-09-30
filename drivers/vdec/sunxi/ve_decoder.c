@@ -299,6 +299,11 @@ int ve_decoder_decode(struct ve_decoder *dec, int end_of_stream, int key_frame_o
 	ret = VideoEngineDecode(dec->engine, end_of_stream, key_frame_only, drop_b_frame_if_delay,
 				current_time_us);
 
+	if (ret == VE_RESULT_RESOLUTION_CHANGE) {
+		/* the engine makes new frame buffer pools */
+		dec->fbm[0] = dec->fbm[1] = NULL;
+		dec->fbm_num = 0;
+	}
 	if (!dec->vconfig.thumbnail_mode && end_of_stream && ret == VE_RESULT_NO_BITSTREAM) {
 		VideoEngineReset(dec->engine);
 	}

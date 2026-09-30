@@ -1,0 +1,12 @@
+sample:
+  name: Hardware H.264 decoder
+tests:
+  sample.drivers.vdec.h264:
+    platform_allow:
+      - yuzukineko/sun252i_f101/evb
+    tags: vdec
+    harness: console
+    harness_config:
+      type: one_line
+      regex:
+        - "h264 decode done: .* 0 bad"
