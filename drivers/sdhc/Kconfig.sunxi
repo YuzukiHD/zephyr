@@ -1,0 +1,25 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config SDHC_SUNXI
+	bool "Allwinner sunxi SD/MMC host controller"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_SMHC_ENABLED
+	select PINCTRL
+	select GPIO
+	select CACHE_MANAGEMENT
+	select SDHC_SUPPORTS_NATIVE_MODE
+	help
+	  Enable the Allwinner sunxi SMHC driver (SD, MMC and SDIO cards).
+
+if SDHC_SUNXI
+
+config SDHC_SUNXI_MAX_DESC
+	int "Number of DMA descriptors"
+	default 64
+	range 2 1024
+	help
+	  Each descriptor moves up to 8 KiB, so this bounds the size of one
+	  transfer done by DMA. Larger requests are rejected.
+
+endif # SDHC_SUNXI
