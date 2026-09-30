@@ -34,6 +34,13 @@ LOG_MODULE_REGISTER(usb_phy_sunxi, CONFIG_USB_PHY_SUNXI_LOG_LEVEL);
 
 #define PHYSEL_OTG		BIT(0)
 
+/* HCI block, relative to the "hci" window */
+#define HCI_PASSBY		0x00
+#define HCI_PHYCTRL		0x10
+
+/* AHB master burst INCR8/INCR4/INCRx align and ULPI bypass */
+#define HCI_PASSBY_BITS		(BIT(10) | BIT(9) | BIT(8) | BIT(0))
+
 struct usb_phy_sunxi_config {
 	mem_addr_t otg;
 	mem_addr_t hci;
@@ -57,10 +64,6 @@ int sunxi_usb_phy_acquire(const struct device *dev, enum sunxi_usb_phy_role role
 	struct usb_phy_sunxi_data *data = dev->data;
 	int ret = 0;
 
-	if (role != SUNXI_USB_PHY_DEVICE) {
-		return -ENOTSUP;
-	}
-
 	k_mutex_lock(&data->lock, K_FOREVER);
 
 	if (data->in_use) {
@@ -74,15 +77,28 @@ int sunxi_usb_phy_acquire(const struct device *dev, enum sunxi_usb_phy_role role
 			    cfg->sram_remap_reg);
 	}
 
-	/* No ID or VBUS comparator is wired: report the B device with VBUS valid */
-	sys_write32((sys_read32(cfg->otg + OTG_ISCR) & ~ISCR_CHANGE_FLAGS) |
-			    ISCR_DPDM_PULLUP_EN | ISCR_ID_PULLUP_EN | ISCR_FORCE_ID_HIGH |
-			    ISCR_FORCE_VBUS_HIGH,
-		    cfg->otg + OTG_ISCR);
+	if (role == SUNXI_USB_PHY_DEVICE) {
+		/* No ID or VBUS comparator is wired: report the B device with VBUS valid */
+		sys_write32((sys_read32(cfg->otg + OTG_ISCR) & ~ISCR_CHANGE_FLAGS) |
+				    ISCR_DPDM_PULLUP_EN | ISCR_ID_PULLUP_EN | ISCR_FORCE_ID_HIGH |
+				    ISCR_FORCE_VBUS_HIGH,
+			    cfg->otg + OTG_ISCR);
 
-	sys_write32((sys_read32(cfg->otg + OTG_PHYCTRL) | PHYCTRL_VBUSVLDEXT) & ~PHYCTRL_SIDDQ,
-		    cfg->otg + OTG_PHYCTRL);
-	sys_write32(sys_read32(cfg->otg + OTG_PHYSEL) | PHYSEL_OTG, cfg->otg + OTG_PHYSEL);
+		sys_write32((sys_read32(cfg->otg + OTG_PHYCTRL) | PHYCTRL_VBUSVLDEXT) &
+				    ~PHYCTRL_SIDDQ,
+			    cfg->otg + OTG_PHYCTRL);
+		sys_write32(sys_read32(cfg->otg + OTG_PHYSEL) | PHYSEL_OTG, cfg->otg + OTG_PHYSEL);
+	} else {
+		/* Route the PHY to the host controllers and power it */
+		sys_write32(sys_read32(cfg->otg + OTG_PHYSEL) & ~PHYSEL_OTG, cfg->otg + OTG_PHYSEL);
+		sys_write32(sys_read32(cfg->hci + HCI_PHYCTRL) & ~PHYCTRL_SIDDQ,
+			    cfg->hci + HCI_PHYCTRL);
+		sys_write32(sys_read32(cfg->hci + HCI_PASSBY) | HCI_PASSBY_BITS,
+			    cfg->hci + HCI_PASSBY);
+		if (cfg->vbus.port != NULL) {
+			gpio_pin_set_dt(&cfg->vbus, 1);
+		}
+	}
 
 	LOG_DBG("rammap %08x iscr %08x phyctrl %08x physel %08x",
 		sys_read32(cfg->sram_remap_reg), sys_read32(cfg->otg + OTG_ISCR),
@@ -103,8 +119,13 @@ void sunxi_usb_phy_release(const struct device *dev, enum sunxi_usb_phy_role rol
 	k_mutex_lock(&data->lock, K_FOREVER);
 
 	if (data->in_use && data->role == role) {
+		if (role == SUNXI_USB_PHY_HOST && cfg->vbus.port != NULL) {
+			gpio_pin_set_dt(&cfg->vbus, 0);
+		}
 		sys_write32(sys_read32(cfg->otg + OTG_PHYCTRL) | PHYCTRL_SIDDQ,
 			    cfg->otg + OTG_PHYCTRL);
+		sys_write32(sys_read32(cfg->hci + HCI_PHYCTRL) | PHYCTRL_SIDDQ,
+			    cfg->hci + HCI_PHYCTRL);
 		data->in_use = false;
 	}
 
@@ -137,6 +158,7 @@ static int usb_phy_sunxi_init(const struct device *dev)
 
 	/* Leave the PHY powered down until a controller takes it */
 	sys_write32(sys_read32(cfg->otg + OTG_PHYCTRL) | PHYCTRL_SIDDQ, cfg->otg + OTG_PHYCTRL);
+	sys_write32(sys_read32(cfg->hci + HCI_PHYCTRL) | PHYCTRL_SIDDQ, cfg->hci + HCI_PHYCTRL);
 
 	if (cfg->vbus.port != NULL) {
 		if (!gpio_is_ready_dt(&cfg->vbus) ||

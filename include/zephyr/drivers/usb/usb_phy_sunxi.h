@@ -35,7 +35,6 @@ enum sunxi_usb_phy_role {
  *
  * @retval 0 acquired
  * @retval -EBUSY the PHY is used by the other role
- * @retval -ENOTSUP role not supported yet
  */
 int sunxi_usb_phy_acquire(const struct device *dev, enum sunxi_usb_phy_role role);
 
