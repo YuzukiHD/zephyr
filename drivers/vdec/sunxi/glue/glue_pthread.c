@@ -5,9 +5,9 @@
  */
 
 /*
- * Mutexes for the archive. Its pthread_mutex_t is one 32 bit word: it is
- * zero when idle and then holds the address of a k_mutex that is created on
- * the first lock or init.
+ * Mutexes for the archive. Its pthread_mutex_t is a 40 byte block that is all
+ * zero when idle; the first word holds the address of a k_mutex that is
+ * created on the first lock or init.
  */
 
 #include <stdint.h>

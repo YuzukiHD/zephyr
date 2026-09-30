@@ -6,4 +6,4 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(vdec_probe)
 
 target_sources(app PRIVATE src/main.c)
-target_include_directories(app PRIVATE ${ZEPHYR_BASE}/drivers/vdec/sunxi/glue)
+target_include_directories(app PRIVATE ${ZEPHYR_BASE}/drivers/vdec/sunxi/glue ${ZEPHYR_BASE}/drivers/vdec/sunxi)
