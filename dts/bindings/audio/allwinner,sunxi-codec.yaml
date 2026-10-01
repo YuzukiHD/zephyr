@@ -1,0 +1,48 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Allwinner sunxi on-chip audio codec: the digital DAC/ADC FIFOs with their
+  DMA streams. The stream side is an I2S device (TX is the DAC, RX the ADC),
+  the analog front end is the "analog" child node.
+
+compatible: "allwinner,sunxi-codec"
+
+include: [base.yaml, i2s-controller.yaml]
+
+properties:
+  reg:
+    required: true
+
+  clocks:
+    required: true
+
+  clock-names:
+    required: true
+
+  resets:
+    type: phandle-array
+    required: true
+
+  dac-clock-reg:
+    type: int
+    required: true
+    description: Offset of the DAC module clock register in the main CCU.
+
+  adc-clock-reg:
+    type: int
+    required: true
+    description: Offset of the ADC module clock register in the main CCU.
+
+  dmas:
+    required: true
+
+  dma-names:
+    required: true
+
+  block-count:
+    type: int
+    default: 4
+    description: |
+      Number of periods in the DMA ring of a stream. Each period is one
+      block of the configured I2S memory slab.

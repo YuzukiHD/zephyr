@@ -1,0 +1,51 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner sunxi I2S / PCM / TDM controller
+
+compatible: "allwinner,sunxi-i2s"
+
+include: [i2s-controller.yaml, pinctrl-device.yaml, base.yaml]
+
+properties:
+  reg:
+    required: true
+
+  clocks:
+    required: true
+
+  clock-names:
+    required: true
+
+  resets:
+    type: phandle-array
+    required: true
+
+  clock-reg:
+    type: int
+    required: true
+    description: Offset of the module clock register in the main CCU.
+
+  dmas:
+    required: true
+
+  dma-names:
+    required: true
+
+  block-count:
+    type: int
+    default: 4
+    description: Number of periods in the DMA ring of a stream.
+
+  slot-width:
+    type: int
+    default: 32
+    enum: [8, 12, 16, 20, 24, 28, 32]
+    description: Width of one slot on the bus in bit clocks.
+
+  mclk-fs:
+    type: int
+    default: 512
+    description: |
+      Ratio of the master clock to the frame (LRCK) rate. The master clock
+      is generated from PLL_AUDIO1 (48 kHz and 44.1 kHz families).

@@ -407,6 +407,50 @@
 			status = "disabled";
 		};
 
+		/* Audio: PLL_AUDIO1 and the module clocks are programmed by the drivers */
+		audio_codec: audio-codec@2030000 {
+			compatible = "allwinner,sunxi-codec";
+			reg = <0x02030000 0x400>;
+			clocks = <&cctl CLK_BUS_AUDIO_CODEC>;
+			clock-names = "bus";
+			resets = <&rctl RST_BUS_AUDIO_CODEC>;
+			dac-clock-reg = <0xa50>;
+			adc-clock-reg = <0xa54>;
+			dmas = <&dma 1>, <&dma 2>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+
+			codec_analog: analog {
+				compatible = "allwinner,sunxi-codec-analog";
+				status = "okay";
+			};
+		};
+
+		i2s0: i2s@2032000 {
+			compatible = "allwinner,sunxi-i2s";
+			reg = <0x02032000 0x1000>;
+			clocks = <&cctl CLK_BUS_I2S0>;
+			clock-names = "bus";
+			resets = <&rctl RST_BUS_I2S0>;
+			clock-reg = <0xa10>;
+			dmas = <&dma 3>, <&dma 4>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		owa: owa@2036000 {
+			compatible = "allwinner,sunxi-owa";
+			reg = <0x02036000 0x1000>;
+			clocks = <&cctl CLK_BUS_OWA>;
+			clock-names = "bus";
+			resets = <&rctl RST_BUS_OWA>;
+			tx-clock-reg = <0xa24>;
+			rx-clock-reg = <0xa28>;
+			dmas = <&dma 5>, <&dma 6>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
 		ve: video-codec@1c0e000 {
 			compatible = "allwinner,sunxi-ve";
 			reg = <0x01c0e000 0x1000>;

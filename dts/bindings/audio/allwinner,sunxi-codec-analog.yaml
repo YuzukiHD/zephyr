@@ -1,0 +1,53 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Analog part of the Allwinner sunxi on-chip audio codec (headphone driver,
+  microphone / line / FM input stage, speaker amplifier enable). Child of the
+  "allwinner,sunxi-codec" node, its registers are in the parent's space.
+
+compatible: "allwinner,sunxi-codec-analog"
+
+include: base.yaml
+
+properties:
+  pa-gpios:
+    type: phandle-array
+    description: |
+      Enable line of the external speaker power amplifier, driven high while
+      the output is on.
+
+  pa-delay-ms:
+    type: int
+    default: 10
+    description: Time between the amplifier enable and the start of the output.
+
+  hpout-gain:
+    type: int
+    default: 7
+    description: Headphone driver gain, 0 (lowest) to 7.
+
+  dac-volume:
+    type: int
+    default: 130
+    description: Digital DAC volume of both channels, 0 to 255.
+
+  adc-volume:
+    type: int
+    default: 160
+    description: Digital ADC volume, 0 to 255.
+
+  adc-gain:
+    type: int
+    default: 15
+    description: Microphone PGA gain, 0 to 15.
+
+  adc-source:
+    type: string
+    default: "mic"
+    enum:
+      - "mic"
+      - "fmin"
+      - "linein"
+      - "none"
+    description: Analog input routed to the ADC.

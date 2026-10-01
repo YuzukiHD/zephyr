@@ -145,6 +145,18 @@
 #define RST_BUS_VE			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x069c, 16)
 #define CLK_BUS_VE_M			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0804, 1)
 
+/*
+ * Audio: bus gates and resets of the codec, I2S0 and OWA. The module clocks
+ * (source select, divider, gate) and PLL_AUDIO1 are programmed by the audio
+ * drivers themselves, the register offsets come from the devicetree.
+ */
+#define CLK_BUS_I2S0			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0a20, 0)
+#define RST_BUS_I2S0			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0a20, 16)
+#define CLK_BUS_OWA			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0a2c, 0)
+#define RST_BUS_OWA			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0a2c, 16)
+#define CLK_BUS_AUDIO_CODEC		ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0a5c, 0)
+#define RST_BUS_AUDIO_CODEC		ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0a5c, 16)
+
 /* Clock / reset register offsets in the main CCU, used by the dtsi */
 #define SUN252I_F101_CCU_UART_BGR_REG	0x090c
 #define SUN252I_F101_CCU_APB_UART_REG	0x0528

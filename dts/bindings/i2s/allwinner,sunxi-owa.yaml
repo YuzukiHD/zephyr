@@ -1,0 +1,43 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner sunxi one-wire audio (S/PDIF, IEC 60958) transmitter and receiver
+
+compatible: "allwinner,sunxi-owa"
+
+include: [i2s-controller.yaml, pinctrl-device.yaml, base.yaml]
+
+properties:
+  reg:
+    required: true
+
+  clocks:
+    required: true
+
+  clock-names:
+    required: true
+
+  resets:
+    type: phandle-array
+    required: true
+
+  tx-clock-reg:
+    type: int
+    required: true
+    description: Offset of the transmitter module clock register in the main CCU.
+
+  rx-clock-reg:
+    type: int
+    required: true
+    description: Offset of the receiver module clock register in the main CCU.
+
+  dmas:
+    required: true
+
+  dma-names:
+    required: true
+
+  block-count:
+    type: int
+    default: 4
+    description: Number of periods in the DMA ring of a stream.
