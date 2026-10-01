@@ -180,6 +180,12 @@ void sunxi_audio_pll_put(void)
 
 int sunxi_audio_module_clk_set(uint32_t reg, uint32_t rate, uint32_t *actual)
 {
+	return sunxi_audio_module_clk_set_mux(reg, rate, MOD_MUX_DIV2, MOD_MUX_DIV5, actual);
+}
+
+int sunxi_audio_module_clk_set_mux(uint32_t reg, uint32_t rate, uint32_t mux_div2,
+				   uint32_t mux_div5, uint32_t *actual)
+{
 	uint32_t src, div, best_p = 0, best_m = 1, best_err = UINT32_MAX;
 
 	if (pll_users == 0 || rate == 0U) {
@@ -209,7 +215,7 @@ int sunxi_audio_module_clk_set(uint32_t reg, uint32_t rate, uint32_t *actual)
 
 	/* the gate stays closed while the divider changes */
 	ccu_wr(reg, 0U);
-	ccu_wr(reg, ((pll_family == SUNXI_AUDIO_FAMILY_48K ? MOD_MUX_DIV5 : MOD_MUX_DIV2)
+	ccu_wr(reg, ((pll_family == SUNXI_AUDIO_FAMILY_48K ? mux_div5 : mux_div2)
 		     << MOD_MUX_SHIFT) | (best_p << MOD_P_SHIFT) | (best_m - 1U));
 	ccu_wr(reg, ccu_rd(reg) | MOD_GATE);
 	if (actual != NULL) {

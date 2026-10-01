@@ -5,3 +5,7 @@
 &i2s0 {
 	status = "okay";
 };
+
+&owa {
+	status = "okay";
+};

@@ -43,6 +43,7 @@ struct sunxi_i2s_stream {
 	uint32_t slot;
 	enum i2s_dir dir;
 	uint8_t periods;
+	uint8_t burst;		/* DMA burst length in FIFO accesses */
 
 	struct i2s_config cfg;
 	enum i2s_state state;

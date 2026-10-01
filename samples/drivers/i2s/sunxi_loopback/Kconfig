@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "Sunxi I2S loopback"
+
+config SAMPLE_LOOPBACK_OWA
+	bool "Test the S/PDIF block instead of I2S0"
+
+source "Kconfig.zephyr"

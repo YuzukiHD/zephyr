@@ -26,6 +26,7 @@ void sunxi_i2s_stream_init(struct sunxi_i2s_stream *s, const struct device *owne
 	s->fifo = fifo;
 	s->dir = dir;
 	s->periods = periods;
+	s->burst = 4;
 	s->state = I2S_STATE_NOT_READY;
 	k_msgq_init(&s->queue, (char *)s->items, sizeof(struct sunxi_i2s_item),
 		    CONFIG_I2S_SUNXI_QUEUE_LEN);
@@ -198,8 +199,8 @@ static int dma_arm(struct sunxi_i2s_stream *s)
 		.complete_callback_en = 1U,
 		.source_data_size = s->width,
 		.dest_data_size = s->width,
-		.source_burst_length = 4U,
-		.dest_burst_length = 4U,
+		.source_burst_length = s->burst,
+		.dest_burst_length = s->burst,
 		.block_count = s->periods,
 		.cyclic = 1U,
 		.head_block = blocks,

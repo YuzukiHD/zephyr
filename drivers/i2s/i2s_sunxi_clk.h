@@ -45,6 +45,9 @@ void sunxi_audio_pll_put(void);
  * 1 percent.
  */
 int sunxi_audio_module_clk_set(uint32_t reg, uint32_t rate, uint32_t *actual);
+/* Same for a clock whose source select has the PLL outputs at other positions */
+int sunxi_audio_module_clk_set_mux(uint32_t reg, uint32_t rate, uint32_t mux_div2,
+				   uint32_t mux_div5, uint32_t *actual);
 void sunxi_audio_module_clk_off(uint32_t reg);
 
 #endif /* ZEPHYR_DRIVERS_I2S_I2S_SUNXI_CLK_H_ */

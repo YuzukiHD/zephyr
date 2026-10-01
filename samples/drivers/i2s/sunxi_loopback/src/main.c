@@ -5,7 +5,7 @@
  */
 
 /*
- * Transmits a counting pattern on I2S0 with the internal loopback on and
+ * Transmits a counting pattern on I2S0 (or the S/PDIF block) with the internal loopback on and
  * checks that the receiver gets the same frames without a gap or a repeat.
  */
 
@@ -14,6 +14,7 @@
 #include <zephyr/drivers/i2s.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
+#include <zephyr/sys/sys_io.h>
 
 #define RATE		48000
 #define FRAMES		480
@@ -25,7 +26,36 @@
 K_MEM_SLAB_DEFINE_STATIC(tx_slab, BLOCK_SIZE, TX_BLOCKS, 4);
 K_MEM_SLAB_DEFINE_STATIC(rx_slab, BLOCK_SIZE, RX_BLOCKS, 4);
 
+#ifdef CONFIG_SAMPLE_LOOPBACK_OWA
+static const struct device *const i2s = DEVICE_DT_GET(DT_NODELABEL(owa));
+#define REGS DT_REG_ADDR(DT_NODELABEL(owa))
+#else
 static const struct device *const i2s = DEVICE_DT_GET(DT_NODELABEL(i2s0));
+#define REGS DT_REG_ADDR(DT_NODELABEL(i2s0))
+#endif
+
+static void dump_regs(void)
+{
+	for (int ch = 5; ch <= 6; ch++) {
+		uintptr_t c = 0x03002100 + ch * 0x40;
+
+		printk("dma%d: en %08x pause %08x desc %08x cfg %08x src %08x dst %08x cnt %08x\n", ch,
+		       sys_read32(c), sys_read32(c + 4), sys_read32(c + 8), sys_read32(c + 0xc),
+		       sys_read32(c + 0x10), sys_read32(c + 0x14), sys_read32(c + 0x18));
+	}
+	printk("fifo:");
+	for (int i = 0; i < 8; i++) {
+		printk(" %08x", sys_read32(REGS + 0x10));
+	}
+	printk("\n");
+	printk("dma irq en %08x %08x stat %08x %08x\n", sys_read32(0x03002000),
+	       sys_read32(0x03002004), sys_read32(0x03002010), sys_read32(0x03002014));
+	for (int off = 0; off < 0x80; off += 16) {
+		printk("%02x: %08x %08x %08x %08x\n", off, sys_read32(REGS + off),
+		       sys_read32(REGS + off + 4), sys_read32(REGS + off + 8),
+		       sys_read32(REGS + off + 12));
+	}
+}
 static uint16_t counter;
 
 static int send_block(void)
@@ -98,6 +128,7 @@ int main(void)
 		ret = i2s_read(i2s, &block, &size);
 		if (ret != 0) {
 			printk("read: %d at block %d\n", ret, b);
+			dump_regs();
 			break;
 		}
 		p = block;
