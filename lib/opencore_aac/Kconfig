@@ -1,0 +1,10 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config OPENCORE_AAC
+	bool "OpenCORE AAC decoder"
+	help
+	  Fixed-point AAC-LC / HE-AAC decoder of the OpenCORE multimedia
+	  framework (west project modules/lib/opencore, Apache-2.0). Integer
+	  only, no libm. The decoder sources are C written in .cpp files and are
+	  built as C.

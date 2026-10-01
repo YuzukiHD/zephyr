@@ -1,0 +1,8 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config MP4_DEMUX
+	bool "MP4 demultiplexer"
+	help
+	  Sample tables and sample iterator for the H.264 and AAC tracks of an
+	  MP4 / ISO base media file.

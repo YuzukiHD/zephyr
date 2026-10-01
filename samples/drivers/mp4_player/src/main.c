@@ -12,7 +12,7 @@
  */
 
 #include <errno.h>
-#include <aacdec.h>
+#include <pvmp4audiodecoder_api.h>
 #include <ff.h>
 #include <stdlib.h>
 #include <string.h>
@@ -134,12 +134,8 @@ static void audio_main(void *a, void *b, void *c)
 		.block_size = PCM_BLOCK,
 		.timeout = 2000,
 	};
-	AACFrameInfo fi = {
-		.nChans = t->channels,
-		.sampRateCore = t->sample_rate,
-		.profile = AAC_PROFILE_LC,
-	};
-	HAACDecoder dec = AACInitDecoder();
+	tPVMP4AudioDecoderExternal ext = {0};
+	void *dec = malloc(PVMP4AudioDecoderGetMemRequirements());
 	static int16_t pcm[AAC_FRAMES * 2 * 2];
 	struct mp4_iter it;
 	struct mp4_sample s;
@@ -150,8 +146,22 @@ static void audio_main(void *a, void *b, void *c)
 	ARG_UNUSED(a);
 	ARG_UNUSED(b);
 	ARG_UNUSED(c);
-	if (dec == NULL || buf == NULL || AACSetRawBlockParams(dec, 0, &fi) != 0) {
+	ext.desiredChannels = 2;
+	ext.outputFormat = OUTPUTFORMAT_16PCM_INTERLEAVED;
+	ext.aacPlusEnabled = false;
+	ext.pOutputBuffer = pcm;
+	ext.pOutputBuffer_plus = pcm + AAC_FRAMES * 2;
+	if (dec == NULL || buf == NULL || PVMP4AudioDecoderInitLibrary(&ext, dec) != 0) {
 		printk("audio: cannot start the AAC decoder\n");
+		goto out;
+	}
+	/* the AudioSpecificConfig of the track tells the decoder the stream layout */
+	ext.pInputBuffer = t->extra;
+	ext.inputBufferCurrentLength = t->extra_len;
+	ext.inputBufferUsedLength = 0;
+	ext.remainderBits = 0;
+	if (PVMP4AudioDecoderConfig(&ext, dec) != MP4AUDEC_SUCCESS) {
+		printk("audio: bad AudioSpecificConfig\n");
 		goto out;
 	}
 	ret = i2s_configure(codec_i2s, I2S_DIR_TX, &cfg);
@@ -163,8 +173,6 @@ static void audio_main(void *a, void *b, void *c)
 
 	mp4_iter_init(t, &it);
 	while (mp4_next(t, &it, &s) == 0) {
-		unsigned char *p = buf;
-		int left = s.size;
 		void *blk;
 		int16_t *o;
 
@@ -173,8 +181,12 @@ static void audio_main(void *a, void *b, void *c)
 			break;
 		}
 		play_stats.sd_bytes += s.size;
-		ret = AACDecode(dec, &p, &left, pcm);
-		if (ret != 0) {
+		ext.pInputBuffer = buf;
+		ext.inputBufferCurrentLength = s.size;
+		ext.inputBufferUsedLength = 0;
+		ext.remainderBits = 0;
+		ret = PVMP4AudioDecodeFrame(&ext, dec);
+		if (ret != MP4AUDEC_SUCCESS) {
 			printk("audio: decode error %d at sample %u\n", ret, s.index);
 			continue;
 		}
@@ -188,14 +200,8 @@ static void audio_main(void *a, void *b, void *c)
 			break;
 		}
 		o = blk;
-		if (t->channels == 1U) {
-			for (int i = 0; i < AAC_FRAMES; i++) {
-				o[2 * i] = pcm[i];
-				o[2 * i + 1] = pcm[i];
-			}
-		} else {
-			memcpy(o, pcm, PCM_BLOCK);
-		}
+		/* desiredChannels is 2: a mono stream comes out duplicated */
+		memcpy(o, pcm, PCM_BLOCK);
 		ret = i2s_write(codec_i2s, blk, PCM_BLOCK);
 		if (ret == -EIO) {
 			/* the stream ran dry: start it again */
@@ -222,6 +228,7 @@ static void audio_main(void *a, void *b, void *c)
 	k_sleep(K_MSEC(300));
 	audio_codec_stop_output(codec_ctl);
 out:
+	free(dec);
 	free(buf);
 	audio_done = true;
 }

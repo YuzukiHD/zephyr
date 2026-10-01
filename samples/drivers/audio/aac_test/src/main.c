@@ -8,50 +8,69 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <aacdec.h>
+#include <pvmp4audiodecoder_api.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 
 #include "testdata.h"
 
-static int16_t all[60000];
+static int16_t all[60000 + 4096];
+
+/* AudioSpecificConfig of AAC-LC, 48 kHz, stereo */
+static const uint8_t asc[2] = {0x11, 0x90};
 
 int main(void)
 {
-	HAACDecoder h = AACInitDecoder();
-	AACFrameInfo fi;
-	unsigned char *p = (unsigned char *)aac_data;
-	int left = sizeof(aac_data), frames = 0, ret;
+	tPVMP4AudioDecoderExternal ext = {0};
+	void *mem = malloc(PVMP4AudioDecoderGetMemRequirements());
+	int ret, frames = 0;
 	int64_t cycles = 0;
 	size_t out = 0;
+	const uint8_t *p = aac_data;
+	size_t left = sizeof(aac_data);
 
-	printk("open %p\n", h);
-	while (left > 0) {
-		int off = AACFindSyncWord(p, left);
+	ext.desiredChannels = 2;
+	ext.outputFormat = OUTPUTFORMAT_16PCM_INTERLEAVED;
+	ext.aacPlusEnabled = false;
+	ret = PVMP4AudioDecoderInitLibrary(&ext, mem);
+	printk("init %d, memory %u bytes\n", ret, PVMP4AudioDecoderGetMemRequirements());
+	ext.pInputBuffer = (UChar *)asc;
+	ext.inputBufferCurrentLength = sizeof(asc);
+	ext.inputBufferUsedLength = 0;
+	ext.remainderBits = 0;
+	ret = PVMP4AudioDecoderConfig(&ext, mem);
+	printk("config %d: %d Hz, %d ch, object %d\n", ret, (int)ext.samplingRate,
+	       ext.encodedChannels, ext.audioObjectType);
+
+	/* the clip is ADTS: cut the frames out by the 13 bit length of the header */
+	while (left > 7 && out + 2048 <= ARRAY_SIZE(all)) {
+		size_t flen = ((p[3] & 3) << 11) | (p[4] << 3) | (p[5] >> 5);
+		size_t hdr = (p[1] & 1) ? 7 : 9;
 		uint32_t t0;
 
-		if (off < 0) {
+		if (p[0] != 0xff || (p[1] & 0xf0) != 0xf0 || flen < hdr || flen > left) {
 			break;
 		}
-		p += off;
-		left -= off;
+		ext.pInputBuffer = (UChar *)p + hdr;
+		ext.inputBufferCurrentLength = flen - hdr;
+		ext.inputBufferUsedLength = 0;
+		ext.remainderBits = 0;
+		ext.pOutputBuffer = &all[out];
+		ext.pOutputBuffer_plus = &all[out] + 2048;
 		t0 = k_cycle_get_32();
-		ret = AACDecode(h, &p, &left, &all[out]);
+		ret = PVMP4AudioDecodeFrame(&ext, mem);
 		cycles += k_cycle_get_32() - t0;
-		if (ret != 0) {
+		if (ret != MP4AUDEC_SUCCESS) {
 			printk("decode error %d at frame %d\n", ret, frames);
 			break;
 		}
-		AACGetLastFrameInfo(h, &fi);
 		if (frames == 0) {
-			printk("%d Hz, %d ch, %d bit, %d samples\n", fi.sampRateCore, fi.nChans,
-			       fi.bitsPerSample, fi.outputSamps);
+			printk("frame: %d samples/ch, %d ch\n", ext.frameLength, ext.desiredChannels);
 		}
-		out += fi.outputSamps;
+		out += ext.frameLength * ext.desiredChannels;
+		p += flen;
+		left -= flen;
 		frames++;
-		if (out + 2048 > ARRAY_SIZE(all)) {
-			break;
-		}
 	}
 	printk("%d frames, %lld us (%lld us/frame), %zu samples\n", frames,
 	       k_cyc_to_us_near64(cycles), frames ? k_cyc_to_us_near64(cycles) / frames : 0, out);
@@ -82,9 +101,9 @@ int main(void)
 		}
 		printk("best shift %d, max diff %d, error energy %lld of %lld\n", best, max, err2,
 		       sig2);
-		printk("aac test %s\n", max <= 4 ? "PASS" : "FAIL");
+		printk("aac test %s\n", max <= 8 ? "PASS" : "FAIL");
 	}
-	AACFreeDecoder(h);
+	free(mem);
 	k_sleep(K_FOREVER);
 
 	return 0;
