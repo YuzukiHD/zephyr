@@ -301,6 +301,15 @@ static int codec_trigger(const struct device *dev, enum i2s_dir dir, enum i2s_tr
 	}
 }
 
+int i2s_sunxi_codec_tx_position(const struct device *dev, uint32_t *blocks, uint32_t *cycle)
+{
+	struct codec_data *data = dev->data;
+
+	sunxi_i2s_stream_position(&data->tx, blocks, cycle);
+
+	return 0;
+}
+
 static int codec_init(const struct device *dev)
 {
 	const struct codec_config *cfg = dev->config;

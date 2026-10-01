@@ -61,6 +61,7 @@ struct sunxi_i2s_stream {
 	struct sunxi_i2s_item items[CONFIG_I2S_SUNXI_QUEUE_LEN];
 
 	uint32_t blocks;
+	uint32_t last_block_cycle;	/* k_cycle_get_32() at the last finished block */
 	uint32_t underruns;
 };
 
@@ -73,6 +74,8 @@ void sunxi_i2s_stream_init(struct sunxi_i2s_stream *s, const struct device *owne
 int sunxi_i2s_stream_configure(struct sunxi_i2s_stream *s, const struct i2s_config *cfg,
 			       uint8_t width);
 int sunxi_i2s_stream_trigger(struct sunxi_i2s_stream *s, enum i2s_trigger_cmd cmd);
+/* Finished blocks since the start and the time of the last one */
+void sunxi_i2s_stream_position(struct sunxi_i2s_stream *s, uint32_t *blocks, uint32_t *cycle);
 int sunxi_i2s_stream_write(struct sunxi_i2s_stream *s, void *block, size_t size);
 int sunxi_i2s_stream_read(struct sunxi_i2s_stream *s, void **block, size_t *size);
 

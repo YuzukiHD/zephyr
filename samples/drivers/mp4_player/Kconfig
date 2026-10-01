@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "MP4 player"
+
+config SAMPLE_MP4_FILE
+	string "File to play"
+	default "/SD:/video540p.mp4"
+
+config SAMPLE_MP4_INFO_ONLY
+	bool "Only list the tracks and check the sample tables"
+
+source "Kconfig.zephyr"

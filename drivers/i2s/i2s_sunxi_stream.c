@@ -101,6 +101,7 @@ static void dma_cb(const struct device *dev, void *user_data, uint32_t channel, 
 		goto out;
 	}
 	s->blocks++;
+	s->last_block_cycle = k_cycle_get_32();
 
 	if (s->dir == I2S_DIR_TX) {
 		bool data;
@@ -237,6 +238,8 @@ static int stream_start(struct sunxi_i2s_stream *s)
 	int ret;
 
 	s->done = 0U;
+	s->blocks = 0U;
+	s->last_block_cycle = k_cycle_get_32();
 	s->stopping = false;
 	s->draining = false;
 	if (s->dir == I2S_DIR_TX) {
@@ -328,6 +331,15 @@ int sunxi_i2s_stream_trigger(struct sunxi_i2s_stream *s, enum i2s_trigger_cmd cm
 	k_spin_unlock(&s->lock, key);
 
 	return ret;
+}
+
+void sunxi_i2s_stream_position(struct sunxi_i2s_stream *s, uint32_t *blocks, uint32_t *cycle)
+{
+	k_spinlock_key_t key = k_spin_lock(&s->lock);
+
+	*blocks = s->blocks;
+	*cycle = s->last_block_cycle;
+	k_spin_unlock(&s->lock, key);
 }
 
 int sunxi_i2s_stream_write(struct sunxi_i2s_stream *s, void *block, size_t size)
