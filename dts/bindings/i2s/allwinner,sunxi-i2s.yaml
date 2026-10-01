@@ -45,7 +45,7 @@ properties:
 
   mclk-fs:
     type: int
-    default: 512
+    default: 256
     description: |
       Ratio of the master clock to the frame (LRCK) rate. The master clock
       is generated from PLL_AUDIO1 (48 kHz and 44.1 kHz families).

@@ -1,0 +1,7 @@
+/*
+ * The I2S pins are shared with the SDIO port and the USB VBUS switch on this
+ * board, the internal loopback of the controller needs none of them.
+ */
+&i2s0 {
+	status = "okay";
+};

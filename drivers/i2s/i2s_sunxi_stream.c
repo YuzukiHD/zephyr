@@ -122,13 +122,22 @@ static void dma_cb(const struct device *dev, void *user_data, uint32_t channel, 
 		}
 	} else {
 		struct sunxi_i2s_item item;
-		uint8_t *p = period_ptr(s, idx);
+		uint8_t *p;
 
-		sys_cache_data_invd_range(p, s->period_size);
+		/*
+		 * The completion of a period is reported while the last words of it can
+		 * still be on their way to memory: take the period before the one just
+		 * finished, it is certainly complete.
+		 */
 		if (s->stopping) {
 			stream_halt(s, I2S_STATE_READY);
 			goto out;
 		}
+		if (s->done < 2U) {
+			goto out;
+		}
+		p = period_ptr(s, (idx + s->periods - 1U) % s->periods);
+		sys_cache_data_invd_range(p, s->period_size);
 		if (k_mem_slab_alloc(s->cfg.mem_slab, &item.block, K_NO_WAIT) != 0) {
 			s->underruns++;
 			stream_halt(s, I2S_STATE_ERROR);
