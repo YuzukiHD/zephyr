@@ -21,6 +21,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 
+#include "overlay.h"
+
 #define MOUNT_PT	"/SD:"
 #define CHUNK_SIZE	(128 * 1024)
 #define LATE_RESYNC_MS	150
@@ -109,8 +111,12 @@ int main(void)
 
 	printk("playing %s\n", CONFIG_SAMPLE_PLAYER_FILE);
 	start = last_report = k_uptime_get();
+	overlay_start();
 	while (true) {
+		int64_t t0 = k_uptime_ticks();
+
 		ret = vdec_stream_get_frame(dev, stream, &frame);
+		play_stats.decode_us += k_ticks_to_us_near32((uint32_t)(k_uptime_ticks() - t0));
 		if (ret == 0) {
 			int64_t due = start + (int64_t)frames * 1000 * CONFIG_SAMPLE_PLAYER_FPS_DEN /
 						      CONFIG_SAMPLE_PLAYER_FPS_NUM;
@@ -119,6 +125,7 @@ int main(void)
 			if (IS_ENABLED(CONFIG_SAMPLE_PLAYER_REALTIME)) {
 				if (now > due + LATE_RESYNC_MS) {
 					late++;
+					play_stats.late = late;
 					start += now - due;
 				} else if (now < due) {
 					k_sleep(K_TIMEOUT_ABS_MS(due));
@@ -129,6 +136,9 @@ int main(void)
 				vdec_frame_release(dev, &shown);
 			}
 			shown = frame;
+			play_stats.width = frame.width;
+			play_stats.height = frame.height;
+			play_stats.frames = frames + 1;
 			frames++;
 			report_frames++;
 			stalls = 0;
@@ -171,6 +181,7 @@ int main(void)
 			}
 			have += n;
 			bytes_total += n;
+			play_stats.sd_bytes += n;
 		}
 		if (have > 0) {
 			/* only whole NAL units: up to the last start code, or all at the end */

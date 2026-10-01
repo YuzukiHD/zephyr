@@ -11,7 +11,10 @@
  * The display engine has video planes that scan out YCbCr pictures directly
  * and scale them in hardware. These calls use one of them to show a decoded
  * picture without converting it to RGB first. While a picture is shown the
- * frame buffer plane that display_write() draws on is hidden.
+ * frame buffer plane that display_write() draws on is hidden, except with
+ * CONFIG_DISPLAY_SUNXI_ARGB8888: then it stays on top and is blended with the
+ * picture by the alpha of its pixels, which makes it an overlay (a pixel with
+ * alpha 0 shows the picture).
  */
 
 #ifndef ZEPHYR_INCLUDE_DRIVERS_DISPLAY_DISPLAY_SUNXI_H_

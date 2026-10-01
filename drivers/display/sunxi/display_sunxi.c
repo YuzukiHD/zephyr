@@ -178,13 +178,13 @@ static int sunxi_display_find_video_plane(void)
 }
 
 static void sunxi_display_fb_plane(struct sunxi_display_data *data, struct display_plane_state *p,
-				   bool enable)
+				   bool enable, uint8_t blend_mode)
 {
 	memset(p, 0, sizeof(*p));
 	p->enable = enable;
 	p->plane_id = SUNXI_FB_PLANE;
 	p->alpha = 0xff;
-	p->blend_mode = DISPLAY_BLEND_NONE;
+	p->blend_mode = blend_mode;
 	p->framebuffer.address = (uintptr_t)sunxi_fb;
 	p->framebuffer.plane_address[0] = (uintptr_t)sunxi_fb;
 	p->framebuffer.plane_stride[0] = data->stride;
@@ -222,7 +222,13 @@ int display_sunxi_show_yuv(const struct device *dev, const struct display_sunxi_
 	display_pipeline_state_init(&state);
 	state.plane_count = 2;
 	fb = &state.planes[0];
-	sunxi_display_fb_plane(data, fb, false);
+	/*
+	 * With an alpha channel the frame buffer plane stays on, above the video
+	 * plane, and whatever is drawn on it is blended over the picture; the
+	 * parts left transparent show the video. Without alpha it would hide it.
+	 */
+	sunxi_display_fb_plane(data, fb, IS_ENABLED(CONFIG_DISPLAY_SUNXI_ARGB8888),
+			       DISPLAY_BLEND_COVERAGE);
 	v = &state.planes[1];
 	memset(v, 0, sizeof(*v));
 	v->enable = true;
@@ -261,7 +267,7 @@ int display_sunxi_hide_yuv(const struct device *dev)
 	}
 	display_pipeline_state_init(&state);
 	state.plane_count = 2;
-	sunxi_display_fb_plane(data, &state.planes[0], true);
+	sunxi_display_fb_plane(data, &state.planes[0], true, DISPLAY_BLEND_NONE);
 	memset(&state.planes[1], 0, sizeof(state.planes[1]));
 	state.planes[1].plane_id = data->video_plane;
 	state.planes[1].enable = false;
