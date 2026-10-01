@@ -8,7 +8,7 @@ description: |
 
 compatible: "allwinner,sunxi-codec"
 
-include: [base.yaml, i2s-controller.yaml]
+include: base.yaml
 
 properties:
   reg:

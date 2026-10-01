@@ -275,3 +275,16 @@
 &ve {
 	status = "okay";
 };
+
+/*
+ * On-chip audio codec: headphone out, the external speaker amplifier is enabled
+ * by PE10. Its DMA streams use channels 1 (DAC) and 2 (ADC) of the DMA controller.
+ */
+&audio_codec {
+	status = "okay";
+};
+
+&codec_analog {
+	pa-gpios = <&gpioe 10 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};

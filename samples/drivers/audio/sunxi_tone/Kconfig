@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "Sunxi codec tone"
+
+config SAMPLE_TONE_RATE
+	int "Frame rate"
+	default 48000
+
+config SAMPLE_TONE_SECONDS
+	int "Seconds to play"
+	default 20
+
+source "Kconfig.zephyr"

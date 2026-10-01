@@ -1,0 +1,12 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config AUDIO_CODEC_SUNXI
+	bool "Allwinner sunxi on-chip audio codec, analog front end"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_CODEC_ANALOG_ENABLED
+	select GPIO
+	help
+	  Headphone / speaker output, microphone, line and FM inputs and the
+	  volume controls of the on-chip audio codec. The sample streams are
+	  provided by the I2S_SUNXI_CODEC driver.

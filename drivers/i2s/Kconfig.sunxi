@@ -1,0 +1,43 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config I2S_SUNXI_STREAM
+	bool
+	select DMA
+	select CACHE_MANAGEMENT
+	help
+	  DMA ring and queue handling shared by the sunxi audio interfaces.
+
+config I2S_SUNXI_QUEUE_LEN
+	int "Allwinner sunxi audio queue length"
+	default 8
+	depends on I2S_SUNXI_STREAM
+	help
+	  Number of memory blocks that can wait in the queue of a stream.
+
+config I2S_SUNXI_CODEC
+	bool "Allwinner sunxi on-chip audio codec streams"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_CODEC_ENABLED
+	select I2S_SUNXI_STREAM
+	help
+	  Playback (DAC) and capture (ADC) streams of the on-chip audio codec
+	  through the I2S API. The analog side is the AUDIO_CODEC_SUNXI driver.
+
+config I2S_SUNXI
+	bool "Allwinner sunxi I2S controller"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_I2S_ENABLED
+	select I2S_SUNXI_STREAM
+	select PINCTRL
+	help
+	  Enable the I2S / PCM / TDM controller of the Allwinner sunxi SoCs.
+
+config I2S_SUNXI_OWA
+	bool "Allwinner sunxi one-wire audio (S/PDIF)"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_OWA_ENABLED
+	select I2S_SUNXI_STREAM
+	select PINCTRL
+	help
+	  Enable the S/PDIF transmitter and receiver of the Allwinner sunxi SoCs.

@@ -327,6 +327,7 @@ static int sunxi_dma_start(const struct device *dev, uint32_t channel)
 		return -EINVAL;
 	}
 
+	sys_cache_data_flush_range(chan->lli, sizeof(chan->lli[0]) * chan->blocks);
 	if (chan->config.channel_direction != PERIPHERAL_TO_MEMORY) {
 		for (uint32_t i = 0U; i < chan->blocks; i++) {
 			sys_cache_data_flush_range((void *)(uintptr_t)chan->lli[i].src,

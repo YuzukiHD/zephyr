@@ -422,11 +422,13 @@
 
 			codec_analog: analog {
 				compatible = "allwinner,sunxi-codec-analog";
-				status = "okay";
+				status = "disabled";
 			};
 		};
 
 		i2s0: i2s@2032000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			compatible = "allwinner,sunxi-i2s";
 			reg = <0x02032000 0x1000>;
 			clocks = <&cctl CLK_BUS_I2S0>;
@@ -439,6 +441,8 @@
 		};
 
 		owa: owa@2036000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			compatible = "allwinner,sunxi-owa";
 			reg = <0x02036000 0x1000>;
 			clocks = <&cctl CLK_BUS_OWA>;
