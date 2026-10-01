@@ -43,7 +43,7 @@ static void queue_purge(struct sunxi_i2s_stream *s)
 
 static uint8_t *period_ptr(struct sunxi_i2s_stream *s, uint32_t idx)
 {
-	return s->ring + (size_t)idx * s->period_size;
+	return s->ring + (size_t)idx * s->stride;
 }
 
 /* Put the next queued block (or silence) into a period of a TX ring; true if data was used */
@@ -62,7 +62,7 @@ static bool tx_fill(struct sunxi_i2s_stream *s, uint32_t idx)
 	} else {
 		memset(p, 0, s->period_size);
 	}
-	sys_cache_data_flush_range(p, s->period_size);
+	sys_cache_data_flush_range(p, s->stride);
 
 	return data;
 }
@@ -139,7 +139,7 @@ static void dma_cb(const struct device *dev, void *user_data, uint32_t channel, 
 			goto out;
 		}
 		p = period_ptr(s, (idx + s->periods - 1U) % s->periods);
-		sys_cache_data_invd_range(p, s->period_size);
+		sys_cache_data_invd_range(p, s->stride);
 		if (k_mem_slab_alloc(s->cfg.mem_slab, &item.block, K_NO_WAIT) != 0) {
 			s->underruns++;
 			stream_halt(s, I2S_STATE_ERROR);
@@ -177,8 +177,10 @@ int sunxi_i2s_stream_configure(struct sunxi_i2s_stream *s, const struct i2s_conf
 
 	queue_purge(s);
 	k_free(s->ring);
-	s->period_size = ROUND_UP(cfg->block_size, 64U);
-	s->ring = k_aligned_alloc(64, (size_t)s->periods * s->period_size);
+	/* a period is one block long, the periods start on cache lines of their own */
+	s->period_size = cfg->block_size;
+	s->stride = ROUND_UP(cfg->block_size, 64U);
+	s->ring = k_aligned_alloc(64, (size_t)s->periods * s->stride);
 	if (s->ring == NULL) {
 		s->state = I2S_STATE_NOT_READY;
 		return -ENOMEM;
@@ -250,8 +252,8 @@ static int stream_start(struct sunxi_i2s_stream *s)
 			(void)tx_fill(s, i);
 		}
 	} else {
-		memset(s->ring, 0, (size_t)s->periods * s->period_size);
-		sys_cache_data_flush_and_invd_range(s->ring, (size_t)s->periods * s->period_size);
+		memset(s->ring, 0, (size_t)s->periods * s->stride);
+		sys_cache_data_flush_and_invd_range(s->ring, (size_t)s->periods * s->stride);
 	}
 	ret = dma_arm(s);
 	if (ret != 0) {

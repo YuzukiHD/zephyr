@@ -50,7 +50,8 @@ struct sunxi_i2s_stream {
 	struct k_spinlock lock;
 
 	uint8_t *ring;
-	size_t period_size;
+	size_t period_size;	/* bytes the DMA moves per period */
+	size_t stride;		/* distance between the periods in the ring */
 	uint32_t done;
 	uint8_t width;
 	bool stopping;

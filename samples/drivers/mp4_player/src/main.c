@@ -117,7 +117,7 @@ static int64_t audio_clock_us(void)
 	}
 	i2s_sunxi_codec_tx_position(codec_i2s, &blocks, &cycle);
 
-	return (int64_t)blocks * AAC_FRAMES * 1000000 / 48000 +
+	return (int64_t)blocks * AAC_FRAMES * 1000000 / mp4.audio.sample_rate +
 	       (int64_t)k_cyc_to_us_floor64(k_cycle_get_32() - cycle);
 }
 
@@ -431,12 +431,13 @@ int main(void)
 	printk("playing %s: %ux%u, %u frames%s\n", CONFIG_SAMPLE_MP4_FILE, v->width, v->height,
 	       v->sample_count, mp4.audio.codec == MP4_CODEC_AAC ? ", with sound" : ", no sound");
 
-	if (mp4.audio.codec == MP4_CODEC_AAC && mp4.audio.sample_rate == 48000U) {
+	if (mp4.audio.codec == MP4_CODEC_AAC &&
+	    (mp4.audio.sample_rate == 48000U || mp4.audio.sample_rate == 44100U)) {
 		k_thread_create(&audio_thread, audio_stack, K_THREAD_STACK_SIZEOF(audio_stack),
 				audio_main, NULL, NULL, NULL, 3, 0, K_NO_WAIT);
 	} else {
 		if (mp4.audio.codec == MP4_CODEC_AAC) {
-			printk("the audio is %u Hz, only 48000 Hz is played\n",
+			printk("the audio is %u Hz, only 48000 and 44100 Hz are played\n",
 			       mp4.audio.sample_rate);
 		}
 		audio_done = true;
