@@ -25,6 +25,8 @@ manifest:
       url-base: https://github.com/BabbleSim
     - name: cherry-embedded
       url-base: https://github.com/cherry-embedded
+    - name: pschatzmann
+      url-base: https://github.com/pschatzmann
 
   group-filter: [-babblesim, -optional]
 
@@ -123,6 +125,11 @@ manifest:
       repo-path: CherryUSB
       revision: 323ade2f49a1194e8b15827036f462743641bf8e
       path: modules/lib/cherryusb
+    - name: libhelix
+      remote: pschatzmann
+      repo-path: arduino-libhelix
+      revision: 5c0a04302dbd661a56408eeb1756e01dd8d33ba1
+      path: modules/lib/libhelix
     - name: cmsis
       revision: 512cc7e895e8491696b61f7ba8066b4a182569b8
       path: modules/hal/cmsis
