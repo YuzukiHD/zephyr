@@ -49,6 +49,10 @@ void usb_dc_low_level_init(uint8_t busid)
 
 	ARG_UNUSED(busid);
 
+	/* the PHY node may be marked zephyr,deferred-init: it is brought up with the first controller */
+	if (!device_is_ready(phy)) {
+		(void)device_init(phy);
+	}
 	if (!device_is_ready(clk) || !device_is_ready(rst.dev) || !device_is_ready(phy)) {
 		LOG_ERR("clock, reset or phy not ready");
 		return;

@@ -13,6 +13,7 @@
 
 #define DT_DRV_COMPAT allwinner_sunxi_display
 
+#include <stdlib.h>
 #include <string.h>
 
 #include <zephyr/cache.h>
@@ -43,8 +44,16 @@ LOG_MODULE_REGISTER(display_sunxi, CONFIG_DISPLAY_LOG_LEVEL);
 #define SUNXI_BPP		2
 #endif
 
-static uint8_t sunxi_fb[SUNXI_MAX_WIDTH * SUNXI_MAX_HEIGHT * SUNXI_BPP]
-	__aligned(64);
+/* the display engine reads the framebuffer by DMA: whole cache lines, 64 byte aligned */
+#define SUNXI_FB_SIZE	ROUND_UP(SUNXI_MAX_WIDTH * SUNXI_MAX_HEIGHT * SUNXI_BPP, 64)
+
+#if defined(CONFIG_DISPLAY_SUNXI_FB_ALLOC)
+/* taken from the C library heap when the device is initialized */
+static uint8_t *sunxi_fb;
+#else
+static uint8_t sunxi_fb_static[SUNXI_FB_SIZE] __aligned(64);
+#define sunxi_fb sunxi_fb_static
+#endif
 
 struct sunxi_display_data {
 	uint16_t width;
@@ -311,12 +320,23 @@ static int sunxi_display_init(const struct device *dev)
 	data->width = mode.width;
 	data->height = mode.height;
 	data->stride = mode.width * SUNXI_BPP;
-	memset(sunxi_fb, 0, sizeof(sunxi_fb));
-	sys_cache_data_flush_range(sunxi_fb, sizeof(sunxi_fb));
+#if defined(CONFIG_DISPLAY_SUNXI_FB_ALLOC)
+	sunxi_fb = aligned_alloc(64, SUNXI_FB_SIZE);
+	if (sunxi_fb == NULL) {
+		LOG_ERR("no memory for the %u byte framebuffer", (unsigned int)SUNXI_FB_SIZE);
+		return -ENOMEM;
+	}
+#endif
+	memset(sunxi_fb, 0, SUNXI_FB_SIZE);
+	sys_cache_data_flush_range(sunxi_fb, SUNXI_FB_SIZE);
 
 	ret = sunxi_display_show_framebuffer(data);
 	if (ret) {
 		LOG_ERR("cannot show the framebuffer: %d", ret);
+#if defined(CONFIG_DISPLAY_SUNXI_FB_ALLOC)
+		free(sunxi_fb);
+		sunxi_fb = NULL;
+#endif
 		return ret;
 	}
 

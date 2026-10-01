@@ -58,6 +58,10 @@ void usb_hc_low_level_init(struct usbh_bus *bus)
 
 	ARG_UNUSED(bus);
 
+	/* the PHY node may be marked zephyr,deferred-init: it is brought up with the first controller */
+	if (!device_is_ready(phy)) {
+		(void)device_init(phy);
+	}
 	if (!device_is_ready(clk) || !device_is_ready(rst_ehci.dev) || !device_is_ready(phy)) {
 		LOG_ERR("clock, reset or phy not ready");
 		return;

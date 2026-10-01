@@ -833,7 +833,8 @@ int dpy_os_pwm_apply(const void *ctrl, uint32_t channel,
 	uint32_t period, pulse;
 	int ret;
 
-	if (!device_is_ready(pwm)) {
+	/* a PWM block marked zephyr,deferred-init is brought up with the backlight that uses it */
+	if (!device_is_ready(pwm) && device_init(pwm) != 0) {
 		return -ENODEV;
 	}
 	ret = pwm_get_cycles_per_sec(pwm, channel, &rate);

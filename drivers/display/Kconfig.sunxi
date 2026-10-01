@@ -32,6 +32,17 @@ config DISPLAY_SUNXI_ARGB8888
 
 endchoice
 
+config DISPLAY_SUNXI_FB_ALLOC
+	bool "Allocate the framebuffer at run time"
+	help
+	  Take the framebuffer from the C library heap (aligned_alloc) when the
+	  device is initialized, instead of a static array. A static array of a
+	  big panel is part of the flat image and slows the download; the heap
+	  needs COMMON_LIBC_MALLOC_ARENA_SIZE != 0 (for example -1: all RAM above
+	  the image). Combined with the devicetree property zephyr,deferred-init
+	  on the display node, the memory is only used when the application
+	  starts the display.
+
 config DISPLAY_SUNXI_READY_TIMEOUT_MS
 	int "Time to wait for the boot modeset"
 	default 5000
