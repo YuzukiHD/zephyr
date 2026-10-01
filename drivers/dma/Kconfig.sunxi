@@ -9,6 +9,15 @@ config DMA_SUNXI
 	help
 	  Enable the F101 12-channel LLI DMA controller.
 
+config DMA_SUNXI_MAX_BLOCKS
+	int "Allwinner sunxi DMA blocks per channel"
+	default 8
+	range 1 64
+	depends on DMA_SUNXI
+	help
+	  Number of chained blocks a channel can hold. A cyclic transfer (an
+	  audio ring) uses one block per period.
+
 config DMA_SUNXI_INIT_PRIORITY
 	int "Allwinner sunxi DMA initialization priority"
 	default 50

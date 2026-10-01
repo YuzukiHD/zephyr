@@ -33,10 +33,13 @@ LOG_MODULE_REGISTER(dma_sunxi, CONFIG_DMA_LOG_LEVEL);
 #define SUNXI_DMA_ENABLE	0x00U
 #define SUNXI_DMA_PAUSE	0x04U
 #define SUNXI_DMA_LLI_ADDR	0x08U
+#define SUNXI_DMA_CUR_SRC	0x10U
+#define SUNXI_DMA_CUR_DST	0x14U
 #define SUNXI_DMA_CNT	0x18U
 
 #define SUNXI_DMA_IRQ_GROUPS	2U
 #define SUNXI_DMA_CHANNELS	12U
+#define SUNXI_DMA_IRQ_PACKAGE	BIT(1)
 #define SUNXI_DMA_IRQ_QUEUE	BIT(2)
 #define SUNXI_DMA_IRQ_TIMEOUT	BIT(3)
 
@@ -67,15 +70,18 @@ struct sunxi_dma_lli {
 	uint32_t len;
 	uint32_t para;
 	uint32_t next;
-};
+} __aligned(32);
 
 struct sunxi_dma_channel {
-	struct sunxi_dma_lli lli __aligned(64);
+	struct sunxi_dma_lli lli[CONFIG_DMA_SUNXI_MAX_BLOCKS];
 	struct dma_config config;
-	struct dma_block_config block;
+	struct dma_block_config block[CONFIG_DMA_SUNXI_MAX_BLOCKS];
 	dma_callback_t callback;
 	void *user_data;
 	uint32_t size;
+	uint32_t blocks;
+	bool cyclic;
+	bool block_irq;
 	bool configured;
 	bool busy;
 };
@@ -155,11 +161,12 @@ static inline uint32_t sunxi_dma_irq_shift(uint32_t channel)
 }
 
 static void sunxi_dma_irq_enable_channel(const struct sunxi_dma_config *cfg,
-						 uint32_t channel, bool enable)
+						 uint32_t channel, bool enable, bool per_block)
 {
 	uint32_t group = sunxi_dma_irq_group(channel);
 	uint32_t shift = sunxi_dma_irq_shift(channel);
-	uint32_t mask = (SUNXI_DMA_IRQ_QUEUE | SUNXI_DMA_IRQ_TIMEOUT) << shift;
+	uint32_t mask = (SUNXI_DMA_IRQ_QUEUE | SUNXI_DMA_IRQ_TIMEOUT |
+			 (per_block ? SUNXI_DMA_IRQ_PACKAGE : 0U)) << shift;
 	uint32_t reg = sunxi_dma_read(cfg, SUNXI_DMA_IRQ_EN + group * 4U);
 
 	if (enable) {
@@ -173,34 +180,33 @@ static void sunxi_dma_irq_enable_channel(const struct sunxi_dma_config *cfg,
 static int sunxi_dma_configure_lli(struct sunxi_dma_channel *chan)
 {
 	const struct dma_config *config = &chan->config;
-	const struct dma_block_config *block = &chan->block;
 	uint32_t src_width = sunxi_dma_width(config->source_data_size);
 	uint32_t dst_width = sunxi_dma_width(config->dest_data_size);
 	int src_burst = sunxi_dma_burst(config->source_burst_length);
 	int dst_burst = sunxi_dma_burst(config->dest_burst_length);
-	uint32_t cfg;
+	uint32_t base;
 
 	if (src_width == UINT32_MAX || dst_width == UINT32_MAX ||
 		src_burst < 0 || dst_burst < 0) {
 		return -EINVAL;
 	}
 
-	cfg = SUNXI_DMA_SRC_WIDTH(src_width) | SUNXI_DMA_SRC_BURST(src_burst) |
+	base = SUNXI_DMA_SRC_WIDTH(src_width) | SUNXI_DMA_SRC_BURST(src_burst) |
 		SUNXI_DMA_DST_WIDTH(dst_width) | SUNXI_DMA_DST_BURST(dst_burst);
 
 	switch (config->channel_direction) {
 	case MEMORY_TO_MEMORY:
-		cfg |= SUNXI_DMA_SRC_DRQ(SUNXI_DMA_DRQ_SDRAM) |
+		base |= SUNXI_DMA_SRC_DRQ(SUNXI_DMA_DRQ_SDRAM) |
 			SUNXI_DMA_DST_DRQ(SUNXI_DMA_DRQ_SDRAM) |
 			SUNXI_DMA_SRC_LINEAR | SUNXI_DMA_DST_LINEAR;
 		break;
 	case MEMORY_TO_PERIPHERAL:
-		cfg |= SUNXI_DMA_SRC_DRQ(SUNXI_DMA_DRQ_SDRAM) |
+		base |= SUNXI_DMA_SRC_DRQ(SUNXI_DMA_DRQ_SDRAM) |
 			SUNXI_DMA_DST_DRQ(config->dma_slot) |
 			SUNXI_DMA_SRC_LINEAR | SUNXI_DMA_DST_IO;
 		break;
 	case PERIPHERAL_TO_MEMORY:
-		cfg |= SUNXI_DMA_SRC_DRQ(config->dma_slot) |
+		base |= SUNXI_DMA_SRC_DRQ(config->dma_slot) |
 			SUNXI_DMA_DST_DRQ(SUNXI_DMA_DRQ_SDRAM) |
 			SUNXI_DMA_SRC_IO | SUNXI_DMA_DST_LINEAR;
 		break;
@@ -208,24 +214,36 @@ static int sunxi_dma_configure_lli(struct sunxi_dma_channel *chan)
 		return -ENOTSUP;
 	}
 
-	if (block->source_addr_adj == DMA_ADDR_ADJ_NO_CHANGE) {
-		cfg |= SUNXI_DMA_SRC_IO;
-	} else if (block->source_addr_adj != DMA_ADDR_ADJ_INCREMENT) {
-		return -ENOTSUP;
-	}
-	if (block->dest_addr_adj == DMA_ADDR_ADJ_NO_CHANGE) {
-		cfg |= SUNXI_DMA_DST_IO;
-	} else if (block->dest_addr_adj != DMA_ADDR_ADJ_INCREMENT) {
-		return -ENOTSUP;
-	}
+	chan->size = 0U;
+	for (uint32_t i = 0U; i < chan->blocks; i++) {
+		const struct dma_block_config *block = &chan->block[i];
+		uint32_t cfg = base;
 
-	chan->lli.cfg = cfg;
-	chan->lli.src = (uint32_t)block->source_address;
-	chan->lli.dst = (uint32_t)block->dest_address;
-	chan->lli.len = block->block_size;
-	chan->lli.para = 64U;
-	chan->lli.next = SUNXI_DMA_LINK_END;
-	chan->size = block->block_size;
+		if (block->source_addr_adj == DMA_ADDR_ADJ_NO_CHANGE) {
+			cfg |= SUNXI_DMA_SRC_IO;
+		} else if (block->source_addr_adj != DMA_ADDR_ADJ_INCREMENT) {
+			return -ENOTSUP;
+		}
+		if (block->dest_addr_adj == DMA_ADDR_ADJ_NO_CHANGE) {
+			cfg |= SUNXI_DMA_DST_IO;
+		} else if (block->dest_addr_adj != DMA_ADDR_ADJ_INCREMENT) {
+			return -ENOTSUP;
+		}
+
+		chan->lli[i].cfg = cfg;
+		chan->lli[i].src = (uint32_t)block->source_address;
+		chan->lli[i].dst = (uint32_t)block->dest_address;
+		chan->lli[i].len = block->block_size;
+		chan->lli[i].para = 64U;
+		if (i + 1U < chan->blocks) {
+			chan->lli[i].next = (uint32_t)(uintptr_t)&chan->lli[i + 1U];
+		} else if (chan->cyclic) {
+			chan->lli[i].next = (uint32_t)(uintptr_t)&chan->lli[0];
+		} else {
+			chan->lli[i].next = SUNXI_DMA_LINK_END;
+		}
+		chan->size += block->block_size;
+	}
 
 	return 0;
 }
@@ -240,16 +258,23 @@ static int sunxi_dma_config(const struct device *dev, uint32_t channel,
 
 	if (channel >= cfg->channels || channel >= SUNXI_DMA_CHANNELS ||
 		config == NULL || config->head_block == NULL ||
-		config->block_count != 1U || config->dma_slot >= cfg->requests) {
+		config->block_count == 0U || config->dma_slot >= cfg->requests) {
 		return -EINVAL;
 	}
-	if (config->head_block->block_size == 0U ||
-		config->head_block->block_size > SUNXI_DMA_MAX_BLOCK ||
-		config->head_block->source_gather_en ||
-		config->head_block->dest_scatter_en ||
-		config->head_block->source_reload_en ||
-		config->head_block->dest_reload_en || config->cyclic) {
+	if (config->block_count > CONFIG_DMA_SUNXI_MAX_BLOCKS) {
 		return -ENOTSUP;
+	}
+	{
+		const struct dma_block_config *b = config->head_block;
+
+		for (uint32_t i = 0U; i < config->block_count; i++, b = b->next_block) {
+			if (b == NULL || b->block_size == 0U ||
+			    b->block_size > SUNXI_DMA_MAX_BLOCK ||
+			    b->source_gather_en || b->dest_scatter_en ||
+			    b->source_reload_en || b->dest_reload_en) {
+				return -ENOTSUP;
+			}
+		}
 	}
 	if ((config->channel_direction != MEMORY_TO_MEMORY) &&
 		(config->channel_direction != MEMORY_TO_PERIPHERAL) &&
@@ -268,7 +293,16 @@ static int sunxi_dma_config(const struct device *dev, uint32_t channel,
 			ret = -EBUSY;
 		} else {
 			chan->config = *config;
-			chan->block = *config->head_block;
+			chan->blocks = config->block_count;
+			chan->cyclic = config->cyclic;
+			chan->block_irq = config->complete_callback_en && (config->block_count > 1U || config->cyclic);
+			{
+				const struct dma_block_config *b = config->head_block;
+
+				for (uint32_t i = 0U; i < chan->blocks; i++, b = b->next_block) {
+					chan->block[i] = *b;
+				}
+			}
 			chan->callback = config->dma_callback;
 			chan->user_data = config->user_data;
 			ret = sunxi_dma_configure_lli(chan);
@@ -293,14 +327,15 @@ static int sunxi_dma_start(const struct device *dev, uint32_t channel)
 		return -EINVAL;
 	}
 
-	sys_cache_data_flush_range(&chan->lli, sizeof(chan->lli));
 	if (chan->config.channel_direction != PERIPHERAL_TO_MEMORY) {
-		sys_cache_data_flush_range((void *)(uintptr_t)chan->lli.src,
-					    chan->lli.len);
+		for (uint32_t i = 0U; i < chan->blocks; i++) {
+			sys_cache_data_flush_range((void *)(uintptr_t)chan->lli[i].src,
+						    chan->lli[i].len);
+		}
 	}
 	chan->busy = true;
-	sunxi_dma_irq_enable_channel(cfg, channel, true);
-	sys_write32((uint32_t)(uintptr_t)&chan->lli,
+	sunxi_dma_irq_enable_channel(cfg, channel, true, chan->block_irq);
+	sys_write32((uint32_t)(uintptr_t)&chan->lli[0],
 		    sunxi_dma_ch_addr(cfg, channel, SUNXI_DMA_LLI_ADDR));
 	sys_write32(SUNXI_DMA_CH_START,
 		    sunxi_dma_ch_addr(cfg, channel, SUNXI_DMA_ENABLE));
@@ -322,7 +357,7 @@ static int sunxi_dma_stop(const struct device *dev, uint32_t channel)
 		    sunxi_dma_ch_addr(cfg, channel, SUNXI_DMA_ENABLE));
 	sys_write32(SUNXI_DMA_CH_RESUME,
 		    sunxi_dma_ch_addr(cfg, channel, SUNXI_DMA_PAUSE));
-	sunxi_dma_irq_enable_channel(cfg, channel, false);
+	sunxi_dma_irq_enable_channel(cfg, channel, false, true);
 	data->channel[channel].busy = false;
 
 	return 0;
@@ -343,9 +378,12 @@ static int sunxi_dma_reload(const struct device *dev, uint32_t channel,
 	if (chan->busy) {
 		return -EBUSY;
 	}
-	chan->block.source_address = src;
-	chan->block.dest_address = dst;
-	chan->block.block_size = size;
+	if (chan->blocks != 1U || chan->cyclic) {
+		return -ENOTSUP;
+	}
+	chan->block[0].source_address = src;
+	chan->block[0].dest_address = dst;
+	chan->block[0].block_size = size;
 	return sunxi_dma_configure_lli(chan);
 }
 
@@ -354,17 +392,35 @@ static int sunxi_dma_get_status(const struct device *dev, uint32_t channel,
 {
 	const struct sunxi_dma_config *cfg = dev->config;
 	struct sunxi_dma_data *data = dev->data;
+	struct sunxi_dma_channel *chan;
+	uint32_t pos = 0U, cur, offset = 0U;
+	bool tx;
 
 	if (channel >= cfg->channels || channel >= SUNXI_DMA_CHANNELS || status == NULL) {
 		return -EINVAL;
 	}
-	status->busy = data->channel[channel].busy;
-	status->dir = data->channel[channel].config.channel_direction;
+	chan = &data->channel[channel];
+	tx = chan->config.channel_direction != PERIPHERAL_TO_MEMORY;
+	status->busy = chan->busy;
+	status->dir = chan->config.channel_direction;
 	status->pending_length = sys_read32(sunxi_dma_ch_addr(cfg, channel, SUNXI_DMA_CNT));
 	status->free = 0U;
-	status->write_position = 0U;
-	status->read_position = 0U;
-	status->total_copied = data->channel[channel].size - status->pending_length;
+	status->total_copied = chan->size - status->pending_length;
+
+	/* offset of the memory side inside the blocks, in chain order */
+	cur = sys_read32(sunxi_dma_ch_addr(cfg, channel,
+					   tx ? SUNXI_DMA_CUR_SRC : SUNXI_DMA_CUR_DST));
+	for (uint32_t i = 0U; i < chan->blocks; i++) {
+		uint32_t start = tx ? chan->lli[i].src : chan->lli[i].dst;
+
+		if (cur >= start && cur - start < chan->lli[i].len) {
+			pos = offset + (cur - start);
+			break;
+		}
+		offset += chan->lli[i].len;
+	}
+	status->read_position = tx ? pos : 0U;
+	status->write_position = tx ? 0U : pos;
 
 	return 0;
 }
@@ -382,7 +438,7 @@ static int sunxi_dma_get_attribute(const struct device *dev, uint32_t type,
 		*value = 4U;
 		return 0;
 	case DMA_ATTR_MAX_BLOCK_COUNT:
-		*value = 1U;
+		*value = CONFIG_DMA_SUNXI_MAX_BLOCKS;
 		return 0;
 	default:
 		return -ENOTSUP;
@@ -429,14 +485,27 @@ static void sunxi_dma_isr(const struct device *dev)
 			callback_status = -EIO;
 		}
 		K_SPINLOCK(&data->lock) {
-			data->channel[channel].busy = false;
-			if (data->channel[channel].config.complete_callback_en &&
-			    data->channel[channel].callback != NULL) {
-				callback = data->channel[channel].callback;
-				user_data = data->channel[channel].user_data;
+			struct sunxi_dma_channel *chan = &data->channel[channel];
+			bool block_only = (event & SUNXI_DMA_IRQ_QUEUE) == 0U &&
+					  (event & SUNXI_DMA_IRQ_PACKAGE) != 0U &&
+					  callback_status == DMA_STATUS_COMPLETE;
+
+			if (block_only) {
+				/* one block of the chain is done, the transfer goes on */
+				if (chan->callback != NULL) {
+					callback = chan->callback;
+					user_data = chan->user_data;
+					callback_status = DMA_STATUS_BLOCK;
+				}
+			} else {
+				chan->busy = false;
+				if (chan->callback != NULL) {
+					callback = chan->callback;
+					user_data = chan->user_data;
+				}
+				sunxi_dma_irq_enable_channel(cfg, channel, false, true);
 			}
 		}
-		sunxi_dma_irq_enable_channel(cfg, channel, false);
 		if (callback != NULL) {
 			callback(dev, user_data, channel, callback_status);
 		}
