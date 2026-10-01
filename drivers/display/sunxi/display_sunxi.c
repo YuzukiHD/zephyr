@@ -254,7 +254,8 @@ int display_sunxi_show_yuv(const struct device *dev, const struct display_sunxi_
 	v->destination.width = dw;
 	v->destination.height = dh;
 
-	return display_submit_ex(&state, DISPLAY_SUBMIT_PARTIAL);
+	return display_submit_ex(&state, DISPLAY_SUBMIT_PARTIAL |
+					       (img->nonblock ? DISPLAY_SUBMIT_NONBLOCK : 0));
 }
 
 int display_sunxi_hide_yuv(const struct device *dev)

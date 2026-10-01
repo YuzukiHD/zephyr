@@ -24,7 +24,8 @@
 #include "overlay.h"
 
 #define MOUNT_PT	"/SD:"
-#define CHUNK_SIZE	(128 * 1024)
+/* must hold the largest NAL unit of the stream (a detailed IDR frame can be 200 KiB) */
+#define CHUNK_SIZE	(512 * 1024)
 #define LATE_RESYNC_MS	150
 #define REPORT_MS	5000
 
@@ -59,6 +60,8 @@ static void show(const struct device *disp, const struct vdec_frame *f)
 		.stride_y = f->stride[0],
 		.stride_uv = f->stride[1],
 		.bt709 = true,
+		/* unpaced playback measures the decoder, not the refresh rate */
+		.nonblock = !IS_ENABLED(CONFIG_SAMPLE_PLAYER_REALTIME),
 	};
 
 	display_sunxi_show_yuv(disp, &yuv);
@@ -73,7 +76,7 @@ int main(void)
 		.format = VDEC_FORMAT_NV12,
 		.buffer_size = 1024 * 1024,
 	};
-	struct vdec_frame frame, shown = {0};
+	struct vdec_frame frame, shown = {0}, older = {0};
 	struct vdec_stream *stream;
 	struct fs_file_t file;
 	uint8_t *buf;
@@ -82,6 +85,7 @@ int main(void)
 	int frames = 0, late = 0, stalls = 0, ret;
 	int64_t start, last_report, bytes_total = 0;
 	int report_frames = 0;
+	uint32_t report_decode_us = 0;
 
 	if (!device_is_ready(dev) || !device_is_ready(disp)) {
 		printk("decoder or display not ready\n");
@@ -132,8 +136,19 @@ int main(void)
 				}
 			}
 			show(disp, &frame);
-			if (shown.priv != NULL) {
-				vdec_frame_release(dev, &shown);
+			/*
+			 * The picture before the last one may still be on the screen when
+			 * the new one does not wait for the refresh: let go of it one step late.
+			 */
+			if (older.priv != NULL) {
+				vdec_frame_release(dev, &older);
+			}
+			if (IS_ENABLED(CONFIG_SAMPLE_PLAYER_REALTIME)) {
+				if (shown.priv != NULL) {
+					vdec_frame_release(dev, &shown);
+				}
+			} else {
+				older = shown;
 			}
 			shown = frame;
 			play_stats.width = frame.width;
@@ -147,12 +162,15 @@ int main(void)
 			if (now - last_report >= REPORT_MS) {
 				int ms = (int)(now - last_report);
 
-				printk("%d frames, %d.%02d fps, %d late, read %lld KiB\n", frames,
-				       report_frames * 1000 / ms,
-				       (report_frames * 100000 / ms) % 100, late,
-				       bytes_total / 1024);
+				uint32_t us = play_stats.decode_us - report_decode_us;
+
+				printk("%d frames, %d.%02d fps, decoder %u us/frame, %d late, read %lld KiB\n",
+				       frames, report_frames * 1000 / ms,
+				       (report_frames * 100000 / ms) % 100,
+				       report_frames ? us / report_frames : 0, late, bytes_total / 1024);
 				last_report = now;
 				report_frames = 0;
+				report_decode_us = play_stats.decode_us;
 			}
 			continue;
 		}
@@ -199,6 +217,10 @@ int main(void)
 				memmove(buf, buf + used, have - used);
 				have -= used;
 				stalls = 0;
+			} else if (have == CHUNK_SIZE && cut <= 0) {
+				printk("a NAL unit is larger than %d KiB, raise CHUNK_SIZE\n",
+				       CHUNK_SIZE / 1024);
+				break;
 			} else if (++stalls > 1000) {
 				printk("stuck: nothing decodes or fits, %d frames\n", frames);
 				break;

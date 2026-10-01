@@ -46,6 +46,12 @@ struct display_sunxi_yuv {
 	bool full_range;
 	/** BT.709 matrix instead of BT.601 */
 	bool bt709;
+	/**
+	 * Return at once instead of waiting for the picture to appear (the next
+	 * vertical blank). The previous picture is then scanned out until that
+	 * moment, so its memory must be kept for one more refresh.
+	 */
+	bool nonblock;
 };
 
 /**
