@@ -14,9 +14,8 @@ up to 6 UARTs. The SoC has no MMU and no external DDR.
 The port provides the SoC peripherals: GPIO, pinctrl, UART, I2C, SPI, PWM,
 ADC, DMA, watchdog, the on-chip audio codec, I2S and S/PDIF, the USB device
 and host controllers, the SD card slot, the 2D accelerator, the video engine
-and the RGB LCD pipeline with its panel and backlight (the console stays on
-UART1: starting the backlight takes PB0/PB1 over, so the console goes silent
-once the backlight runs).
+and the RGB LCD pipeline with its panel (no backlight is wired yet: PB0..PB3
+stay free and PB0/PB1 keep the UART1 console).
 
 Memory
 ******

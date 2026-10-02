@@ -180,18 +180,6 @@
 		};
 	};
 
-	/*
-	 * PB0 and PB1 are also the UART1 console (mux 4): starting the backlight takes them over (mux 2),
-	 * so the console is silent from then on.
-	 */
-	pwm_bl_pins: pwm_bl_pins {
-		pwm_bl_group {
-			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 0, 2)
-				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 1, 2)
-				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 2, 2)
-				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 3, 2)>;
-		};
-	};
 };
 
 /* pins shared with the LCD */
@@ -203,17 +191,11 @@
 	status = "disabled";
 };
 
-/* PWM_BL backlight: PB0..PB3 mux 2 */
-&pwm_bl {
-	status = "okay";
-	pinctrl-0 = <&pwm_bl_pins>;
-	pinctrl-names = "default";
-};
-
 /*
  * 1024x600 RGB666 panel of the EVB:
  *
- *   de0 -> tcon_lcd0 -> rgb0 -> panel0, backlight0 on the PWM_BL block
+ *   de0 -> tcon_lcd0 -> rgb0 -> panel0 (no backlight is wired yet: PB0..PB3 are free, PB0/PB1 are
+ *   the UART1 console)
  */
 &pio {
 	rgb_pins: rgb_pins {
@@ -245,13 +227,6 @@
 };
 
 / {
-	backlight0: backlight {
-		compatible = "pwm-backlight";
-		pwms = <&pwm_bl 0 20000 PWM_POLARITY_INVERTED>;
-		max-level = <255>;
-		default-level = <250>;
-	};
-
 	panel0: panel {
 		compatible = "panel-simple";
 		width = <1024>;
@@ -259,8 +234,7 @@
 		width-mm = <154>;
 		height-mm = <86>;
 		bus-format = "rgb666-1x18";
-		enable-delay-ms = <50>;
-		backlight = <&backlight0>;
+			enable-delay-ms = <50>;
 
 		/* PD22 switches the panel supply */
 		power-on-sequence = <SUNXI_CMD_GPIO(SUNXI_PIN(ALLWINNER_PIO_PD, 22), 1)

@@ -7,7 +7,7 @@
 /*
  * Allwinner F101 EVB: the YuzukiNeko configuration with the console on the EVB debug UART (UART3,
  * PE08/PE09). UART3 takes the pins of I2C0, so I2C0 is off, and UART1 (PB00/PB01) is not wired to the
- * console of the EVB.
+ * console of the EVB: they carry the panel backlight with PB2/PB3 (PWM_BL).
  */
 
 #include "../yuzukineko/yuzukineko.dts"
@@ -30,6 +30,37 @@
 				  ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 9, 6)>;
 		};
 	};
+};
+
+&pio {
+	pwm_bl_pins: pwm_bl_pins {
+		pwm_bl_group {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 0, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 1, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 2, 2)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 3, 2)>;
+		};
+	};
+};
+
+/* PWM_BL backlight: PB0..PB3 mux 2 */
+&pwm_bl {
+	status = "okay";
+	pinctrl-0 = <&pwm_bl_pins>;
+	pinctrl-names = "default";
+};
+
+/ {
+	backlight0: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm_bl 0 20000 PWM_POLARITY_INVERTED>;
+		max-level = <255>;
+		default-level = <250>;
+	};
+};
+
+&panel0 {
+	backlight = <&backlight0>;
 };
 
 &uart3 {
