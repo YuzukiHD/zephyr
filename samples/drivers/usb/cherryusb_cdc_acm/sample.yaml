@@ -2,7 +2,7 @@ sample:
   name: CherryUSB CDC ACM on the sunxi OTG controller
 tests:
   sample.drivers.usb.cherryusb_cdc_acm:
-    platform_allow: yuzukineko/sun252i_f101/evb
+    platform_allow: f101_evb
     tags: usb
     harness: none
     build_only: true

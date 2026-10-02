@@ -1,8 +1,8 @@
 # Copyright (c) 2026 Yuzuki Tsuru
 # SPDX-License-Identifier: Apache-2.0
 
-identifier: yuzukineko/sun252i_f101/evb
-name: YuzukiHD YuzukiNeko (F101S3 EVB1)
+identifier: f101_evb
+name: YuzukiHD F101 EVB
 type: mcu
 arch: riscv
 toolchain:

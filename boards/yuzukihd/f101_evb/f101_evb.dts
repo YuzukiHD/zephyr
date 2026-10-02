@@ -1,0 +1,48 @@
+/*
+ * Copyright (c) 2026 Yuzuki Tsuru
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/*
+ * Allwinner F101 EVB: the YuzukiNeko configuration with the console on the EVB debug UART (UART3,
+ * PE08/PE09). UART3 takes the pins of I2C0, so I2C0 is off, and UART1 (PB00/PB01) is not wired to the
+ * console of the EVB.
+ */
+
+#include "../yuzukineko/yuzukineko.dts"
+
+/ {
+	model = "YuzukiHD F101 EVB";
+	compatible = "yuzukihd,f101-evb";
+
+	chosen {
+		zephyr,console = &uart3;
+		zephyr,shell-uart = &uart3;
+	};
+};
+
+/* UART3 console on PE08 (TX) / PE09 (RX), muxsel 6 */
+&pio {
+	uart3_pins: uart3_pins {
+		uart3_tx_rx {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 8, 6)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 9, 6)>;
+		};
+	};
+};
+
+&uart3 {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart3_pins>;
+	pinctrl-names = "default";
+};
+
+&uart1 {
+	status = "disabled";
+};
+
+&i2c0 {
+	status = "disabled";
+};

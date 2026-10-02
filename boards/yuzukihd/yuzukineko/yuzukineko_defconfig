@@ -30,3 +30,10 @@ CONFIG_LOG_MODE_DEFERRED=y
 CONFIG_LOG_BACKEND_UART=y
 CONFIG_LOG_PRINTK=y
 CONFIG_DEVMEM_SHELL=y
+
+# display, 2D engine and the heap of the media samples
+CONFIG_DISPLAY=y
+CONFIG_G2D=y
+CONFIG_HEAP_MEM_POOL_SIZE=262144
+# Room for the display shell output and LVGL logging
+CONFIG_LOG_BUFFER_SIZE=16384

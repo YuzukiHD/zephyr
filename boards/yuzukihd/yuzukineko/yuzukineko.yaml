@@ -12,4 +12,6 @@ ram: 16384
 flash: 0
 supported:
   - serial
+  - display
+  - pwm
 vendor: yuzukihd

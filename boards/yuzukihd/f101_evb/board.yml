@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 board:
-  name: yuzukineko
-  full_name: YuzukiHD YuzukiNeko
+  name: f101_evb
+  full_name: YuzukiHD F101 EVB
   vendor: yuzukihd
   socs:
   - name: sun252i_f101

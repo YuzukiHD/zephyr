@@ -4,7 +4,7 @@ sample:
 tests:
   sample.drivers.g2d:
     platform_allow:
-      - yuzukineko/sun252i_f101/evb
+      - f101_evb
     tags: g2d
     harness: console
     harness_config:

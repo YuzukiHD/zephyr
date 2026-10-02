@@ -3,7 +3,7 @@ sample:
 tests:
   sample.drivers.vdec.h264:
     platform_allow:
-      - yuzukineko/sun252i_f101/evb
+      - f101_evb
     tags: vdec
     harness: console
     harness_config:
