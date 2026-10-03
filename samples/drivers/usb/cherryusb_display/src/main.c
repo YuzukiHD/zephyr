@@ -27,6 +27,7 @@
 
 #include "usbd_core.h"
 #include "usbd_display.h"
+#include "usb_touch.h"
 
 extern uintptr_t usb_sunxi_otg_base(void);
 
@@ -34,9 +35,11 @@ extern uintptr_t usb_sunxi_otg_base(void);
 #define DISPLAY_OUT_EP  0x02
 
 #define USBD_VID        0x303A
-#define USBD_PID        0x2987
+#define USBD_PID        0x2987     /* the display alone */
+#define USBD_PID_TOUCH  0x2986     /* composite: display on interface 0, touch screen on 1 */
 #define USBD_MAX_POWER  100
 #define USB_CONFIG_SIZE (9 + 9 + 7 + 7)
+#define USB_CONFIG_SIZE_TOUCH (USB_CONFIG_SIZE + USB_TOUCH_DESCRIPTOR_SIZE)
 
 #define DISPLAY_EP_MPS  512
 
@@ -63,17 +66,37 @@ static const struct device *const disp = DEVICE_DT_GET(DT_CHOSEN(zephyr_display)
 
 static char product_string[64];
 
-static const uint8_t device_descriptor[] = {
+static uint8_t device_descriptor[] = {
 	USB_DEVICE_DESCRIPTOR_INIT(USB_2_0, 0x00, 0x00, 0x00, USBD_VID, USBD_PID, 0x0101, 0x01)
 };
 
-static const uint8_t config_descriptor[] = {
-	USB_CONFIG_DESCRIPTOR_INIT(USB_CONFIG_SIZE, 0x01, 0x01, USB_CONFIG_BUS_POWERED,
-				   USBD_MAX_POWER),
-	USB_INTERFACE_DESCRIPTOR_INIT(0x00, 0x00, 0x02, 0xff, 0x00, 0x00, 0x00),
-	USB_ENDPOINT_DESCRIPTOR_INIT(DISPLAY_IN_EP, 0x02, DISPLAY_EP_MPS, 0x00),
-	USB_ENDPOINT_DESCRIPTOR_INIT(DISPLAY_OUT_EP, 0x02, DISPLAY_EP_MPS, 0x00),
-};
+static uint8_t config_descriptor[USB_CONFIG_SIZE_TOUCH];
+
+/* the display interface, plus the touch screen if asked for */
+static void build_config_descriptor(void)
+{
+	static const uint8_t display_part[] = {
+		USB_INTERFACE_DESCRIPTOR_INIT(0x00, 0x00, 0x02, 0xff, 0x00, 0x00, 0x00),
+		USB_ENDPOINT_DESCRIPTOR_INIT(DISPLAY_IN_EP, 0x02, DISPLAY_EP_MPS, 0x00),
+		USB_ENDPOINT_DESCRIPTOR_INIT(DISPLAY_OUT_EP, 0x02, DISPLAY_EP_MPS, 0x00),
+	};
+	const uint8_t head[9] = {
+		USB_CONFIG_DESCRIPTOR_INIT(0, 0x01, 0x01, USB_CONFIG_BUS_POWERED, USBD_MAX_POWER)
+	};
+	uint32_t len = sizeof(head);
+
+	memcpy(config_descriptor, head, sizeof(head));
+	memcpy(config_descriptor + len, display_part, sizeof(display_part));
+	len += sizeof(display_part);
+	if (IS_ENABLED(CONFIG_SAMPLE_USB_DISPLAY_TOUCH)) {
+		len += usb_touch_descriptor(config_descriptor + len, USB_TOUCH_INTERFACE);
+		config_descriptor[4] = 2;			/* bNumInterfaces */
+		device_descriptor[10] = USBD_PID_TOUCH & 0xFF;	/* idProduct */
+		device_descriptor[11] = USBD_PID_TOUCH >> 8;
+	}
+	config_descriptor[2] = len & 0xFF;			/* wTotalLength */
+	config_descriptor[3] = len >> 8;
+}
 
 static const uint8_t device_quality_descriptor[] = {
 	0x0a, USB_DESCRIPTOR_TYPE_DEVICE_QUALIFIER, 0x00, 0x02, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00,
@@ -117,11 +140,14 @@ static const struct usb_descriptor display_descriptor = {
 	.string_descriptor_callback = string_descriptor_callback,
 };
 
+static K_SEM_DEFINE(configured, 0, 1);
+
 static void usbd_event_handler(uint8_t busid, uint8_t event)
 {
 	switch (event) {
 	case USBD_EVENT_CONFIGURED:
 		printk("usb display: configured by the host\n");
+		k_sem_give(&configured);
 		break;
 	case USBD_EVENT_DISCONNECTED:
 		printk("usb display: disconnected\n");
@@ -130,6 +156,15 @@ static void usbd_event_handler(uint8_t busid, uint8_t event)
 		break;
 	}
 }
+
+#ifdef CONFIG_SAMPLE_USB_DISPLAY_TOUCH_DEMO
+/* a short drag with two fingers once the host has configured the device */
+static void demo_fn(struct k_work *work)
+{
+	usb_touch_demo(2);
+}
+static K_WORK_DELAYABLE_DEFINE(demo_work, demo_fn);
+#endif
 
 static struct usbd_interface display_intf;
 static struct usbd_display_frame frame_pool[FRAME_COUNT];
@@ -328,15 +363,22 @@ int main(void)
 		}
 	}
 
+	build_config_descriptor();
 	usbd_desc_register(0, &display_descriptor);
 	usbd_add_interface(0, usbd_display_init_intf(&display_intf, DISPLAY_OUT_EP, DISPLAY_IN_EP,
 						    frame_pool, FRAME_COUNT));
+	if (IS_ENABLED(CONFIG_SAMPLE_USB_DISPLAY_TOUCH)) {
+		usb_touch_init(0);
+	}
 	usbd_initialize(0, usb_sunxi_otg_base(), usbd_event_handler);
 	printk("usb display: waiting for the host (%s), shown on the %ux%u panel\n", product_string,
 	       caps.x_resolution, caps.y_resolution);
 
 	last = k_uptime_get_32();
 	for (;;) {
+		if (IS_ENABLED(CONFIG_SAMPLE_USB_DISPLAY_TOUCH_DEMO) && k_sem_take(&configured, K_NO_WAIT) == 0) {
+			k_work_schedule(&demo_work, K_SECONDS(3));
+		}
 		struct usbd_display_frame *frame;
 
 		if (usbd_display_dequeue(&frame, 1000) >= 0) {

@@ -21,4 +21,15 @@ config SAMPLE_USB_DISPLAY_QUALITY
 	default 9
 	range 1 10
 
+config SAMPLE_USB_DISPLAY_TOUCH
+	bool "Add a HID multi-touch screen to the device"
+	default y
+	help
+	  Makes the device a composite one: the display on interface 0 and a five finger
+	  touch screen on interface 1. Windows loads its own driver for the latter.
+
+config SAMPLE_USB_DISPLAY_TOUCH_DEMO
+	bool "Send a synthetic two finger drag when the host has configured the device"
+	depends on SAMPLE_USB_DISPLAY_TOUCH
+
 source "Kconfig.zephyr"
