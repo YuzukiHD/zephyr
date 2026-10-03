@@ -39,6 +39,14 @@ struct ccu_cctl_data {
 	struct k_spinlock lock;
 };
 
+static bool ccu_cctl_is_cpu(const struct ccu_cctl_config *config, uint32_t id)
+{
+	ARG_UNUSED(config);
+
+	return ALLWINNER_CCU_ID_BIT(id) == ALLWINNER_CCU_BIT_RATE &&
+	       ALLWINNER_CCU_ID_REG(id) == ALLWINNER_CCU_PLL_CPU_REG;
+}
+
 static int ccu_cctl_on(const struct device *dev, clock_control_subsys_t sys)
 {
 	const struct ccu_cctl_config *config = dev->config;
@@ -48,6 +56,9 @@ static int ccu_cctl_on(const struct device *dev, clock_control_subsys_t sys)
 
 	if (base_idx >= config->n_bases) {
 		return -EINVAL;
+	}
+	if (ccu_cctl_is_cpu(config, id)) {
+		return 0;
 	}
 
 	K_SPINLOCK(&data->lock) {
@@ -68,6 +79,9 @@ static int ccu_cctl_off(const struct device *dev, clock_control_subsys_t sys)
 	if (base_idx >= config->n_bases) {
 		return -EINVAL;
 	}
+	if (ccu_cctl_is_cpu(config, id)) {
+		return 0;
+	}
 
 	K_SPINLOCK(&data->lock) {
 		sys_clear_bit(config->bases[base_idx] + ALLWINNER_CCU_ID_REG(id),
@@ -86,6 +100,9 @@ static enum clock_control_status ccu_cctl_get_status(const struct device *dev,
 
 	if (base_idx >= config->n_bases) {
 		return CLOCK_CONTROL_STATUS_UNKNOWN;
+	}
+	if (ccu_cctl_is_cpu(config, id)) {
+		return CLOCK_CONTROL_STATUS_ON;
 	}
 
 	if (sys_test_bit(config->bases[base_idx] + ALLWINNER_CCU_ID_REG(id),
@@ -150,6 +167,75 @@ static int ccu_cctl_get_apb_uart_rate(uint32_t base, uint32_t apb_uart_reg,
 	return 0;
 }
 
+/* The PLL output divided by the post dividers: the clock of the CPU core */
+static uint32_t ccu_cctl_cpu_div(uint32_t reg)
+{
+	return (FIELD_GET(ALLWINNER_CCU_PLL_CPU_P_MASK, reg) + 1) *
+	       (FIELD_GET(ALLWINNER_CCU_PLL_CPU_M0_MASK, reg) + 1) *
+	       (FIELD_GET(ALLWINNER_CCU_PLL_CPU_M1_MASK, reg) + 1);
+}
+
+static uint32_t ccu_cctl_cpu_rate(uint32_t base)
+{
+	uint32_t reg = sys_read32(base + ALLWINNER_CCU_PLL_CPU_REG);
+
+	return ALLWINNER_CCU_HOSC_RATE / ccu_cctl_cpu_div(reg) *
+	       FIELD_GET(ALLWINNER_CCU_PLL_CPU_N_MASK, reg);
+}
+
+/*
+ * The factor N is latched by the update bit while the spread spectrum mode is
+ * on; the mode is then switched off and latched again. The CPU keeps running
+ * from the PLL throughout, the output settles within the delay at the end.
+ */
+static int ccu_cctl_set_cpu_rate(const struct device *dev, uint32_t base, uint32_t rate)
+{
+	struct ccu_cctl_data *data = dev->data;
+	uintptr_t ctrl = base + ALLWINNER_CCU_PLL_CPU_REG;
+	uintptr_t ssc = base + ALLWINNER_CCU_PLL_CPU_SSC_REG;
+	uint32_t div = ccu_cctl_cpu_div(sys_read32(ctrl));
+	uint32_t n = DIV_ROUND_CLOSEST(rate, ALLWINNER_CCU_HOSC_RATE / div);
+
+	if (rate > ALLWINNER_CCU_PLL_CPU_MAX_RATE || n < ALLWINNER_CCU_PLL_CPU_N_MIN ||
+	    n > ALLWINNER_CCU_PLL_CPU_N_MAX) {
+		return -EINVAL;
+	}
+
+	K_SPINLOCK(&data->lock) {
+		sys_write32(sys_read32(ssc) | ALLWINNER_CCU_PLL_CPU_SSC_MODE, ssc);
+		sys_write32((sys_read32(ctrl) & ~ALLWINNER_CCU_PLL_CPU_N_MASK) |
+			    FIELD_PREP(ALLWINNER_CCU_PLL_CPU_N_MASK, n) |
+			    ALLWINNER_CCU_PLL_CPU_UPDATE, ctrl);
+		while (sys_read32(ctrl) & ALLWINNER_CCU_PLL_CPU_UPDATE) {
+		}
+		sys_write32(sys_read32(ssc) & ~ALLWINNER_CCU_PLL_CPU_SSC_MODE, ssc);
+		sys_write32(sys_read32(ctrl) | ALLWINNER_CCU_PLL_CPU_UPDATE, ctrl);
+		while (sys_read32(ctrl) & ALLWINNER_CCU_PLL_CPU_UPDATE) {
+		}
+		k_busy_wait(200);
+	}
+
+	return 0;
+}
+
+static int ccu_cctl_set_rate(const struct device *dev, clock_control_subsys_t sys,
+			     clock_control_subsys_rate_t rate)
+{
+	const struct ccu_cctl_config *config = dev->config;
+	uint32_t id = (uint32_t)(uintptr_t)sys;
+	uint32_t base_idx = ALLWINNER_CCU_ID_BASE(id);
+
+	if (base_idx >= config->n_bases) {
+		return -EINVAL;
+	}
+	if (ccu_cctl_is_cpu(config, id)) {
+		return ccu_cctl_set_cpu_rate(dev, config->bases[base_idx],
+					     (uint32_t)(uintptr_t)rate);
+	}
+
+	return -ENOTSUP;
+}
+
 static int ccu_cctl_get_rate(const struct device *dev,
 			     clock_control_subsys_t sys, uint32_t *rate)
 {
@@ -161,6 +247,10 @@ static int ccu_cctl_get_rate(const struct device *dev,
 		return -EINVAL;
 	}
 
+	if (ccu_cctl_is_cpu(config, id)) {
+		*rate = ccu_cctl_cpu_rate(config->bases[base_idx]);
+		return 0;
+	}
 	if (config->uart_bgr_reg != 0 &&
 	    ALLWINNER_CCU_ID_REG(id) == config->uart_bgr_reg) {
 		return ccu_cctl_get_apb_uart_rate(config->bases[base_idx],
@@ -176,6 +266,7 @@ static DEVICE_API(clock_control, ccu_cctl_driver_api) = {
 	.off = ccu_cctl_off,
 	.get_status = ccu_cctl_get_status,
 	.get_rate = ccu_cctl_get_rate,
+	.set_rate = ccu_cctl_set_rate,
 };
 
 #define CCU_CCTL_INIT(n)							\

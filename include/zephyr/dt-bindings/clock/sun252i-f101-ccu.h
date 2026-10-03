@@ -162,4 +162,8 @@
 #define SUN252I_F101_CCU_APB_UART_REG	0x0528
 #define SUN252I_F101_CCU_PLL_PERI_REG	0x0020
 
+/* The CPU clock: clock_control_get_rate() / clock_control_set_rate() only */
+#define CLK_CPU			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, ALLWINNER_CCU_PLL_CPU_REG, \
+						 ALLWINNER_CCU_BIT_RATE)
+
 #endif /* ZEPHYR_INCLUDE_DT_BINDINGS_CLOCK_SUN252I_F101_CCU_H_ */
