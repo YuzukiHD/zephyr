@@ -46,6 +46,8 @@ struct vdec_stream {
 	enum vdec_format format;
 	bool eos;
 	int held;
+	bool jpeg;		/* motion JPEG: every feed is one whole picture */
+	bool no_cache_ops;	/* the CPU does not read the pictures */
 };
 
 /* give up after this many decoding steps that produced nothing */
@@ -162,7 +164,9 @@ static struct vdec_sunxi_frame *make_frame(struct ve_decoder *dec, struct ve_pic
 		pic->top_offset, pic->right_offset, pic->bottom_offset, pic->buf_size);
 
 	/* the engine wrote the picture behind the cache */
-	ve_mem_get_ops()->flush_cache(pic->data0, pic->buf_size);
+	if (stream == NULL || !stream->no_cache_ops) {
+		ve_mem_get_ops()->flush_cache(pic->data0, pic->buf_size);
+	}
 
 	memset(frame, 0, sizeof(*frame));
 	frame->format = format;
@@ -321,9 +325,12 @@ static int vdec_sunxi_stream_open(const struct device *dev, const struct vdec_st
 	struct ve_vconfig cfg = {0};
 	struct vdec_stream *st;
 
-	if (config->codec != VDEC_CODEC_H264 ||
+	if ((config->codec != VDEC_CODEC_H264 && config->codec != VDEC_CODEC_JPEG) ||
 	    (config->format != VDEC_FORMAT_NV12 && config->format != VDEC_FORMAT_NV21)) {
 		return -ENOTSUP;
+	}
+	if (config->codec == VDEC_CODEC_JPEG && (!config->width || !config->height)) {
+		return -EINVAL;
 	}
 
 	k_sem_take(&dd->claim, K_FOREVER);
@@ -338,9 +345,17 @@ static int vdec_sunxi_stream_open(const struct device *dev, const struct vdec_st
 		goto err;
 	}
 
-	info.codec_format = VE_CODEC_H264;
+	st->jpeg = config->codec == VDEC_CODEC_JPEG;
+	st->no_cache_ops = config->no_cache_ops;
+	info.codec_format = st->jpeg ? VE_CODEC_MJPEG : VE_CODEC_H264;
+	if (st->jpeg) {
+		info.width = config->width;
+		info.height = config->height;
+		cfg.align_stride = 16;
+	}
 	cfg.output_pixel_format = config->format == VDEC_FORMAT_NV21 ? VE_PIX_NV21 : VE_PIX_NV12;
-	cfg.display_holding_fb_num = 3;
+	cfg.display_holding_fb_num = config->holding_frames == 0 ? 3 :
+				     (config->holding_frames == VDEC_HOLD_NONE ? 0 : config->holding_frames);
 	cfg.disp_error_frame = 1;
 	cfg.vbv_buffer_size = config->buffer_size;
 	if (ve_decoder_init(st->decoder, &info, &cfg) != 0) {
@@ -377,6 +392,34 @@ static int vdec_sunxi_stream_feed(const struct device *dev, struct vdec_stream *
 	size_t taken = 0;
 
 	*consumed = 0;
+	if (st->jpeg) {
+		struct ve_stream_data sd = {0};
+		char *buf, *ring;
+		int buf_len, ring_len;
+
+		if (ve_decoder_request_stream_buffer(st->decoder, len, &buf, &buf_len, &ring, &ring_len,
+						     0) != 0 || buf_len + ring_len < (int)len) {
+			return -EAGAIN;
+		}
+		if (buf_len >= (int)len) {
+			memcpy(buf, data, len);
+		} else {
+			memcpy(buf, data, buf_len);
+			memcpy(ring, p + buf_len, len - buf_len);
+		}
+		sd.data = buf;
+		sd.length = len;
+		sd.pts = pts;
+		sd.is_first_part = 1;
+		sd.is_last_part = 1;
+		sd.valid = 1;
+		if (ve_decoder_submit_stream(st->decoder, &sd, 0) != 0) {
+			return -EIO;
+		}
+		*consumed = len;
+
+		return 0;
+	}
 	nal = next_start_code(p, end);
 	if (nal != p) {
 		return -EINVAL;

@@ -65,6 +65,9 @@ struct vdec_frame {
 /** A video stream being decoded */
 struct vdec_stream;
 
+/** vdec_stream_config.holding_frames: keep no picture */
+#define VDEC_HOLD_NONE	(-1)
+
 /** Stream parameters */
 struct vdec_stream_config {
 	enum vdec_codec codec;
@@ -75,6 +78,19 @@ struct vdec_stream_config {
 	 * the largest group of NAL units handed to vdec_stream_feed() in one call.
 	 */
 	size_t buffer_size;
+	/**
+	 * The frames are not read by the CPU (the display engine, the 2D accelerator or nothing reads
+	 * them): skip the cache maintenance of the picture memory.
+	 */
+	bool no_cache_ops;
+	/**
+	 * Pictures the application keeps (shown) while the engine decodes the next ones; 0 means the
+	 * default of 3, VDEC_HOLD_NONE none. The engine allocates two pictures plus this many.
+	 */
+	int holding_frames;
+	/** Picture size, JPEG streams only (the engine wants it up front) */
+	uint16_t width;
+	uint16_t height;
 };
 
 /** @cond INTERNAL_HIDDEN */
