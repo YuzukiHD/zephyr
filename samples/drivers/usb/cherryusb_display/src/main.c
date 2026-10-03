@@ -28,6 +28,9 @@
 #include "usbd_core.h"
 #include "usbd_display.h"
 #include "usb_touch.h"
+#ifdef CONFIG_SAMPLE_USB_DISPLAY_CTP
+#include "usb_ctp.h"
+#endif
 
 extern uintptr_t usb_sunxi_otg_base(void);
 
@@ -369,6 +372,9 @@ int main(void)
 						    frame_pool, FRAME_COUNT));
 	if (IS_ENABLED(CONFIG_SAMPLE_USB_DISPLAY_TOUCH)) {
 		usb_touch_init(0);
+#ifdef CONFIG_SAMPLE_USB_DISPLAY_CTP
+		usb_ctp_start();
+#endif
 	}
 	usbd_initialize(0, usb_sunxi_otg_base(), usbd_event_handler);
 	printk("usb display: waiting for the host (%s), shown on the %ux%u panel\n", product_string,

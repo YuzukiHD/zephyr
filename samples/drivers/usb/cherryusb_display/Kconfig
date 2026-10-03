@@ -32,4 +32,21 @@ config SAMPLE_USB_DISPLAY_TOUCH_DEMO
 	bool "Send a synthetic two finger drag when the host has configured the device"
 	depends on SAMPLE_USB_DISPLAY_TOUCH
 
+config SAMPLE_USB_DISPLAY_CTP
+	bool "Take the touch points from the touch panel on I2C1"
+	depends on SAMPLE_USB_DISPLAY_TOUCH
+	default y
+
+config SAMPLE_USB_DISPLAY_CTP_SWAP
+	bool "Exchange X and Y of the touch panel"
+	depends on SAMPLE_USB_DISPLAY_CTP
+
+config SAMPLE_USB_DISPLAY_CTP_FLIP_X
+	bool "Mirror X of the touch panel"
+	depends on SAMPLE_USB_DISPLAY_CTP
+
+config SAMPLE_USB_DISPLAY_CTP_FLIP_Y
+	bool "Mirror Y of the touch panel"
+	depends on SAMPLE_USB_DISPLAY_CTP
+
 source "Kconfig.zephyr"
