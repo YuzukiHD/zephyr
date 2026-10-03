@@ -267,6 +267,56 @@ int display_sunxi_show_yuv(const struct device *dev, const struct display_sunxi_
 					       (img->nonblock ? DISPLAY_SUBMIT_NONBLOCK : 0));
 }
 
+int display_sunxi_show_rgb(const struct device *dev, const struct display_sunxi_rgb *img)
+{
+	struct sunxi_display_data *data = dev->data;
+	struct display_pipeline_state state;
+	struct display_plane_state *v, *fb;
+	uint32_t dw, dh;
+
+	if (data->video_plane < 0) {
+		return -ENOTSUP;
+	}
+	if ((uint64_t)data->width * img->height <= (uint64_t)data->height * img->width) {
+		dw = data->width;
+		dh = (uint64_t)img->height * data->width / img->width;
+	} else {
+		dh = data->height;
+		dw = (uint64_t)img->width * data->height / img->height;
+	}
+	dw &= ~1U;
+	dh &= ~1U;
+
+	display_pipeline_state_init(&state);
+	state.plane_count = 2;
+	fb = &state.planes[0];
+	sunxi_display_fb_plane(data, fb, IS_ENABLED(CONFIG_DISPLAY_SUNXI_ARGB8888),
+			       DISPLAY_BLEND_COVERAGE);
+	v = &state.planes[1];
+	memset(v, 0, sizeof(*v));
+	v->enable = true;
+	v->plane_id = data->video_plane;
+	v->alpha = 0xff;
+	v->blend_mode = DISPLAY_BLEND_NONE;
+	v->framebuffer.address = (uintptr_t)img->data;
+	v->framebuffer.plane_address[0] = (uintptr_t)img->data;
+	v->framebuffer.plane_stride[0] = img->stride;
+	v->framebuffer.plane_count = 1;
+	v->framebuffer.format = img->xrgb8888 ? DISPLAY_FORMAT_XRGB8888 : DISPLAY_FORMAT_RGB565;
+	v->framebuffer.width = img->width;
+	v->framebuffer.height = img->height;
+	v->framebuffer.stride = img->stride;
+	v->source.width = img->width;
+	v->source.height = img->height;
+	v->destination.x = (data->width - dw) / 2;
+	v->destination.y = (data->height - dh) / 2;
+	v->destination.width = dw;
+	v->destination.height = dh;
+
+	return display_submit_ex(&state, DISPLAY_SUBMIT_PARTIAL |
+					       (img->nonblock ? DISPLAY_SUBMIT_NONBLOCK : 0));
+}
+
 int display_sunxi_hide_yuv(const struct device *dev)
 {
 	struct sunxi_display_data *data = dev->data;

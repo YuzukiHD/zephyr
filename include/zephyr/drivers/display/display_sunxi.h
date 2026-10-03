@@ -65,6 +65,26 @@ struct display_sunxi_yuv {
  */
 int display_sunxi_show_yuv(const struct device *dev, const struct display_sunxi_yuv *img);
 
+/** An RGB picture for the scaling video plane */
+struct display_sunxi_rgb {
+	const void *data;
+	uint16_t width;
+	uint16_t height;
+	/** Bytes from one row to the next */
+	uint16_t stride;
+	/** 32 bit XRGB8888 instead of RGB565 */
+	bool xrgb8888;
+	/** As in display_sunxi_yuv */
+	bool nonblock;
+};
+
+/**
+ * @brief Show an RGB picture on the video plane, scaled like display_sunxi_show_yuv()
+ *
+ * The memory rules are the same as for display_sunxi_show_yuv().
+ */
+int display_sunxi_show_rgb(const struct device *dev, const struct display_sunxi_rgb *img);
+
 /** @brief Stop showing the picture and bring the frame buffer plane back */
 int display_sunxi_hide_yuv(const struct device *dev);
 
