@@ -376,9 +376,11 @@ int main(void)
 
 	last = k_uptime_get_32();
 	for (;;) {
-		if (IS_ENABLED(CONFIG_SAMPLE_USB_DISPLAY_TOUCH_DEMO) && k_sem_take(&configured, K_NO_WAIT) == 0) {
+#ifdef CONFIG_SAMPLE_USB_DISPLAY_TOUCH_DEMO
+		if (k_sem_take(&configured, K_NO_WAIT) == 0) {
 			k_work_schedule(&demo_work, K_SECONDS(3));
 		}
+#endif
 		struct usbd_display_frame *frame;
 
 		if (usbd_display_dequeue(&frame, 1000) >= 0) {
