@@ -1,0 +1,24 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "USB second screen"
+
+config SAMPLE_USB_DISPLAY_WIDTH
+	int "Width the host is told, 0 for the width of the panel"
+	default 0
+
+config SAMPLE_USB_DISPLAY_HEIGHT
+	int "Height the host is told, 0 for the height of the panel"
+	default 0
+
+config SAMPLE_USB_DISPLAY_FPS
+	int "Frame rate the host is told"
+	default 60
+	range 1 120
+
+config SAMPLE_USB_DISPLAY_QUALITY
+	int "JPEG quality the host is told (1..10)"
+	default 9
+	range 1 10
+
+source "Kconfig.zephyr"
