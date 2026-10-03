@@ -40,6 +40,9 @@ config ISR_STACK_SIZE
 config SYSTEM_WORKQUEUE_STACK_SIZE
 	default 2048
 
+config LOG_PROCESS_THREAD_STACK_SIZE
+	default 2048
+
 config TEST_EXTRA_STACK_SIZE
 	default 1024
 
