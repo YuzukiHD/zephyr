@@ -24,6 +24,27 @@ config ICACHE_LINE_SIZE
 config DCACHE_LINE_SIZE
 	default 64
 
+if SUN252I_F101_RVV
+
+# Every interrupt and exception frame carries the vector registers (about
+# 32 * VLEN/8 + 32 bytes), each thread stack has to hold one plus the handler.
+config IDLE_STACK_SIZE
+	default 1536
+
+config MAIN_STACK_SIZE
+	default 4096
+
+config ISR_STACK_SIZE
+	default 4096
+
+config SYSTEM_WORKQUEUE_STACK_SIZE
+	default 2048
+
+config TEST_EXTRA_STACK_SIZE
+	default 1024
+
+endif # SUN252I_F101_RVV
+
 if SERIAL
 
 config UART_NS16550

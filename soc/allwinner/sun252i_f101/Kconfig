@@ -24,5 +24,24 @@ config SOC_SUN252I_F101
 	select SOC_EARLY_INIT_HOOK
 	select CACHE_MANAGEMENT
 	help
-	  Allwinner sun252i (F101) SoC, single Xuantie C907 (rv32imafdc) core
+	  Allwinner sun252i (F101) SoC, single Xuantie C907 (rv32imafdcv) core
 	  with PLIC and CLINT, no MMU, no external DDR (internal SRAM/PSRAM only).
+
+config SUN252I_F101_RVV
+	bool "Vector extension (RVV 1.0)"
+	depends on SOC_SUN252I_F101
+	select RISCV_ISA_EXT_V
+	select RISCV_ISA_EXT_ZICSR
+	select RISCV_SOC_CONTEXT_SAVE
+	help
+	  Build the image with the V extension and preserve the vector
+	  registers in every interrupt and exception frame, so threads and
+	  interrupt handlers can all use the vector unit. It costs about
+	  VLEN/8*32 + 32 bytes of stack for each interrupt level.
+
+config SUN252I_F101_VLEN
+	int "Vector register length in bits"
+	depends on SUN252I_F101_RVV
+	default 128
+	help
+	  VLEN of the C907 vector unit, checked against the vlenb CSR at boot.

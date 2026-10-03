@@ -58,6 +58,17 @@ void soc_early_init_hook(void)
 
 	xuantie_cpu_init();
 
+#ifdef CONFIG_SUN252I_F101_RVV
+	{
+		unsigned long vlenb;
+
+		__asm__ volatile("csrr %0, vlenb" : "=r"(vlenb));
+		__ASSERT(vlenb == CONFIG_SUN252I_F101_VLEN / 8,
+			 "SUN252I_F101_VLEN does not match the vector unit");
+		ARG_UNUSED(vlenb);
+	}
+#endif
+
 	/* Enable the console UART bus clock and deassert its reset early,
 	 * so the console is available before the CCU driver is initialized.
 	 */

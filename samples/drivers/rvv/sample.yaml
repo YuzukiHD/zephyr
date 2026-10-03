@@ -1,0 +1,11 @@
+sample:
+  name: RISC-V vector extension
+tests:
+  sample.drivers.rvv:
+    platform_allow:
+      - f101_evb
+    harness: console
+    harness_config:
+      type: one_line
+      regex:
+        - "RVV: all checks passed"

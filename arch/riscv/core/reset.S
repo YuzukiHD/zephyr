@@ -45,6 +45,15 @@ SECTION_FUNC(TEXT, __initialize)
 
 boot_first_core:
 
+#ifdef CONFIG_RISCV_ISA_EXT_V
+	/*
+	 * Enable the vector unit before any C code runs, the compiler may use
+	 * it for memcpy() and friends.
+	 */
+	li t0, MSTATUS_VS_INIT
+	csrs mstatus, t0
+#endif
+
 #ifdef CONFIG_FPU
 	/*
 	 * Enable floating-point.

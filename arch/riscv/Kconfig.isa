@@ -64,6 +64,15 @@ config RISCV_ISA_EXT_D
 	  computational instructions compliant with the IEEE 754-2008
 	  arithmetic standard.
 
+config RISCV_ISA_EXT_V
+	bool
+	help
+	  (V) - Standard Extension for Vector Operations
+
+	  The code is built with the vector extension enabled. The SoC has to
+	  preserve the vector registers across interrupts and exceptions
+	  (RISCV_SOC_CONTEXT_SAVE) and mstatus.VS has to be enabled.
+
 config RISCV_ISA_EXT_G
 	bool
 	select RISCV_ISA_EXT_M
