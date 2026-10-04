@@ -30,6 +30,9 @@
 #include <zephyr/sw_isr_table.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/arch/riscv/csr.h>
+#ifdef CONFIG_MMU
+#include <zephyr/arch/riscv/mm.h>
+#endif
 #include <zephyr/arch/riscv/exception.h>
 
 /* stacks, for RISCV architecture stack should be 16byte-aligned */

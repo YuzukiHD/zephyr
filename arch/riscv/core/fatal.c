@@ -221,6 +221,17 @@ void z_riscv_fault(struct arch_esf *esf)
 	}
 #endif /* CONFIG_USERSPACE */
 
+#ifdef CONFIG_RISCV_MMU
+	{
+		unsigned long mcause = csr_read(mcause) & CONFIG_RISCV_MCAUSE_EXCEPTION_MASK;
+
+		if ((mcause == RISCV_EXC_LOAD_PAGE_FAULT || mcause == RISCV_EXC_STORE_PAGE_FAULT) &&
+		    z_riscv_mm_page_fault(esf, mcause, csr_read(mtval))) {
+			return;
+		}
+	}
+#endif /* CONFIG_RISCV_MMU */
+
 	unsigned int reason = K_ERR_CPU_EXCEPTION;
 
 	if (bad_stack_pointer(esf)) {

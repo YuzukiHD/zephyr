@@ -21,6 +21,7 @@
 #include <kernel_internal.h>
 #include <zephyr/platform/hooks.h>
 #include <zephyr/arch/cache.h>
+#include <zephyr/arch/riscv/mm.h>
 
 #if defined(CONFIG_RISCV_SOC_INTERRUPT_INIT)
 void soc_interrupt_init(void);
@@ -46,6 +47,9 @@ void z_prep_c(void)
 #endif
 #if CONFIG_ARCH_CACHE
 	arch_cache_init();
+#endif
+#if defined(CONFIG_RISCV_MMU)
+	z_riscv_mm_init();
 #endif
 	z_cstart();
 	CODE_UNREACHABLE;

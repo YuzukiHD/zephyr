@@ -39,6 +39,20 @@ config SUN252I_F101_RVV
 	  interrupt handlers can all use the vector unit. It costs about
 	  VLEN/8*32 + 32 bytes of stack for each interrupt level.
 
+config SUN252I_F101_MMU
+	bool "Sv32 MMU"
+	depends on SOC_SUN252I_F101
+	select RISCV_MMU
+	help
+	  Run the kernel with the Sv32 MMU in the way described at RISCV_MMU.
+	  The image and the peripherals are mapped 1:1 and the rest of the
+	  RAM is page frames for k_mem_map() and demand paging. Memory that a
+	  driver hands to a DMA engine or to the cache operations must be
+	  mapped 1:1: the static image (including the heap arenas), not
+	  pages from k_mem_map(). Set a finite
+	  COMMON_LIBC_MALLOC_ARENA_SIZE: the default of all the free RAM
+	  would be taken from the page frames.
+
 config SUN252I_F101_VLEN
 	int "Vector register length in bits"
 	depends on SUN252I_F101_RVV

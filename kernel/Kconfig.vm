@@ -134,6 +134,20 @@ config DEMAND_MAPPING
 	  allocate memory at mem_map time. They are made to be populated
 	  at access time using the demand paging mechanism instead.
 
+config DEMAND_PAGING_BACKING_STORE_SLEEPS
+	bool "The backing store may sleep"
+	depends on DEMAND_PAGING_ALLOW_IRQ
+	depends on !SMP
+	help
+	  On a single core the paging operations lock the scheduler, which
+	  means the backing store cannot wait for anything that needs another
+	  thread or an interrupt to run a thread (an SD card driver, for
+	  instance). With this option the operations are serialized with a
+	  mutex instead, as on SMP: other threads run while a page is read
+	  or written, and so may touch the same unmapped page, which then
+	  waits for the mutex. Meant for a system where one thread uses the
+	  paged memory.
+
 config DEMAND_PAGING_ALLOW_IRQ
 	bool "Allow interrupts during page-ins/outs"
 	help

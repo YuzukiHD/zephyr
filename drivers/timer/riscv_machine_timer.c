@@ -8,6 +8,7 @@
 #include <limits.h>
 
 #include <zephyr/init.h>
+#include <zephyr/arch/riscv/mm.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/timer/system_timer.h>
 #include <zephyr/sys_clock.h>
@@ -70,7 +71,7 @@ static void set_mtimecmp(uint64_t time)
 #ifdef CONFIG_64BIT
 	*(volatile uint64_t *)get_hart_mtimecmp() = time;
 #else
-	volatile uint32_t *r = (uint32_t *)get_hart_mtimecmp();
+	mem_addr_t r = get_hart_mtimecmp();
 
 	/* Per spec, the RISC-V MTIME/MTIMECMP registers are 64 bit,
 	 * but are NOT internally latched for multiword transfers.  So
@@ -78,9 +79,9 @@ static void set_mtimecmp(uint64_t time)
 	 * spurious interrupts: always set the high word to a max
 	 * value first.
 	 */
-	r[1] = 0xffffffff;
-	r[0] = (uint32_t)time;
-	r[1] = (uint32_t)(time >> 32);
+	z_riscv_mmode_write32(0xffffffff, r + 4);
+	z_riscv_mmode_write32((uint32_t)time, r);
+	z_riscv_mmode_write32((uint32_t)(time >> 32), r + 4);
 #endif
 }
 
@@ -89,14 +90,14 @@ static uint64_t mtime(void)
 #ifdef CONFIG_64BIT
 	return *(volatile uint64_t *)MTIME_REG;
 #else
-	volatile uint32_t *r = (uint32_t *)MTIME_REG;
+	mem_addr_t r = MTIME_REG;
 	uint32_t lo, hi;
 
 	/* Likewise, must guard against rollover when reading */
 	do {
-		hi = r[1];
-		lo = r[0];
-	} while (r[1] != hi);
+		hi = z_riscv_mmode_read32(r + 4);
+		lo = z_riscv_mmode_read32(r);
+	} while (z_riscv_mmode_read32(r + 4) != hi);
 
 	return (((uint64_t)hi) << 32) | lo;
 #endif

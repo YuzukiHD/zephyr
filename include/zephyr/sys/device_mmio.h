@@ -97,7 +97,12 @@ __boot_func
 static inline void device_map(mm_reg_t *virt_addr, uintptr_t phys_addr,
 			      size_t size, uint32_t flags)
 {
-#ifdef CONFIG_MMU
+#if defined(CONFIG_RISCV_MMU_MMIO_IDENTITY)
+	/* The registers are mapped 1:1 and are also used untranslated */
+	ARG_UNUSED(size);
+	ARG_UNUSED(flags);
+	*virt_addr = phys_addr;
+#elif defined(CONFIG_MMU)
 	/* Pass along flags and add that we want supervisor mode
 	 * read-write access.
 	 */

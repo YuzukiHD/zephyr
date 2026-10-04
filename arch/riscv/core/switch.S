@@ -90,5 +90,17 @@ not_user_task:
 	/* Restore the new thread's callee-saved registers */
 	DO_CALLEE_SAVED(lr, a0)
 
+#if defined(CONFIG_RISCV_MMU)
+	/*
+	 * The thread that is switched in runs with its loads and stores
+	 * translated. A trap leaves MPP at M, which switches the translation
+	 * off for as long as the trap code runs; if this switch happens in
+	 * trap code and the thread was suspended in thread code, it would
+	 * otherwise go on untranslated until its next mret.
+	 */
+	li t0, 0x1800 /* MSTATUS_MPP */
+	csrc mstatus, t0
+#endif
+
 	/* Return to arch_switch() or _irq_wrapper() */
 	ret

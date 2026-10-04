@@ -68,6 +68,11 @@ void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 	stack_init->mstatus |= MSTATUS_VS_INIT;
 #endif
 
+#if defined(CONFIG_RISCV_MMU)
+	/* the thread's loads and stores are translated from the first instruction */
+	stack_init->mstatus |= MSTATUS_MPRV;
+#endif
+
 #if defined(CONFIG_FPU_SHARING)
 	/* thread birth happens through the exception return path */
 	thread->arch.exception_depth = 1;

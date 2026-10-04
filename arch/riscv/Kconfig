@@ -309,6 +309,43 @@ config EXTRA_EXCEPTION_INFO
 	  register state, when a fault occurs. This information can be useful
 	  to collect for post-mortem analysis and debug of issues.
 
+config RISCV_MMU
+	bool "Sv32 MMU for a machine mode kernel"
+	depends on !64BIT && !SMP && !RISCV_PMP
+	select CPU_HAS_MMU
+	select MMU
+	select ARCH_HAS_DEMAND_PAGING
+	select ARCH_HAS_DEMAND_MAPPING
+	select ARCH_SUPPORTS_EVICTION_TRACKING
+	help
+	  The kernel keeps running in machine mode but loads and stores are
+	  translated by the Sv32 MMU: mstatus.MPRV is set and mstatus.MPP is
+	  U, and the pages are user pages. Instruction fetches are not
+	  translated, so the code of the image cannot be paged. A trap
+	  switches the translation off until it returns (mret puts MPP back
+	  to U), which means interrupt handlers and the trap entry and exit
+	  code see physical addresses: everything they touch has to be mapped
+	  1:1.
+
+	  The core needs a PMP entry that lets the translated accesses
+	  through, so it is not compatible with RISCV_PMP.
+
+config RISCV_MMU_MMIO_IDENTITY
+	bool
+	default y if RISCV_MMU
+	help
+	  The device registers are mapped 1:1 by the SoC, so device_map()
+	  returns the physical address. Interrupt handlers run untranslated
+	  and thread code translated, they have to use the same address.
+
+config RISCV_MMU_BOOT_INFO
+	bool "Print the memory map at boot"
+	depends on RISCV_MMU
+	default y
+	help
+	  Prints the translation mode, the ranges that are mapped 1:1 and the
+	  kernel address space with its page frames once the kernel is up.
+
 config RISCV_PMP
 	bool "RISC-V PMP Support"
 	select THREAD_STACK_INFO

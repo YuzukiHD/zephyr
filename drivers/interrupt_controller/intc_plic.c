@@ -28,6 +28,19 @@
 #include <zephyr/drivers/interrupt_controller/riscv_plic.h>
 #include <zephyr/irq.h>
 
+/*
+ * With the MMU on, the register accesses of the PLIC must not go through the
+ * page tables: the PLIC is inside the core and answers to machine mode only.
+ */
+#ifdef CONFIG_RISCV_MMU
+#include <zephyr/arch/riscv/mm.h>
+#define plic_read32(addr)		z_riscv_mmode_read32(addr)
+#define plic_write32(val, addr)		z_riscv_mmode_write32(val, addr)
+#else
+#define plic_read32(addr)		sys_read32(addr)
+#define plic_write32(val, addr)		sys_write32(val, addr)
+#endif
+
 #define PLIC_BASE_ADDR(n) DT_INST_REG_ADDR(n)
 /*
  * These registers' offset are defined in the RISCV PLIC specs, see:
@@ -240,7 +253,7 @@ static uint32_t riscv_plic_irq_trig_val(const struct device *dev, uint32_t local
 	mem_addr_t trig_addr = config->trig + local_irq_to_reg_offset(local_irq);
 	uint32_t offset = local_irq * CONFIG_PLIC_TRIG_TYPE_BITWIDTH;
 
-	return sys_read32(trig_addr) & GENMASK(offset + CONFIG_PLIC_TRIG_TYPE_BITWIDTH - 1, offset);
+	return plic_read32(trig_addr) & GENMASK(offset + CONFIG_PLIC_TRIG_TYPE_BITWIDTH - 1, offset);
 }
 #endif /* CONFIG_PLIC_SUPPORTS_TRIG_TYPE */
 
@@ -254,10 +267,10 @@ static void plic_irq_enable_set_state(uint32_t irq, bool enable)
 			get_context_en_addr(dev, cpu_num) + local_irq_to_reg_offset(local_irq);
 		uint32_t en_value;
 
-		en_value = sys_read32(en_addr);
+		en_value = plic_read32(en_addr);
 		WRITE_BIT(en_value, local_irq & PLIC_REG_MASK,
 			  enable ? (get_irq_cpumask(dev, local_irq) & BIT(cpu_num)) != 0 : false);
-		sys_write32(en_value, en_addr);
+		plic_write32(en_value, en_addr);
 	}
 }
 
@@ -312,7 +325,7 @@ static int local_irq_is_enabled(const struct device *dev, uint32_t local_irq)
 	for (uint32_t cpu_num = 0; cpu_num < arch_num_cpus(); cpu_num++) {
 		mem_addr_t en_addr =
 			get_context_en_addr(dev, cpu_num) + local_irq_to_reg_offset(local_irq);
-		uint32_t en_value = sys_read32(en_addr);
+		uint32_t en_value = plic_read32(en_addr);
 
 		if (IS_ENABLED(CONFIG_PLIC_IRQ_AFFINITY)) {
 			is_enabled |= !!(en_value & BIT(bit_position));
@@ -367,7 +380,7 @@ void riscv_plic_set_priority(uint32_t irq, uint32_t priority)
 		priority = config->max_prio;
 	}
 
-	sys_write32(priority, prio_addr);
+	plic_write32(priority, prio_addr);
 }
 
 #ifdef CONFIG_PLIC_SUPPORTS_SOFT_INTERRUPT
@@ -376,10 +389,10 @@ void riscv_plic_irq_set_pending(uint32_t irq)
 	const struct device *dev = get_plic_dev_from_irq(irq);
 	const uint32_t local_irq = irq_from_level_2(irq);
 	mem_addr_t pend_addr = get_pending_reg(dev, local_irq);
-	uint32_t pend_value = sys_read32(pend_addr);
+	uint32_t pend_value = plic_read32(pend_addr);
 
 	WRITE_BIT(pend_value, local_irq & PLIC_REG_MASK, true);
-	sys_write32(pend_value, pend_addr);
+	plic_write32(pend_value, pend_addr);
 }
 #endif /* CONFIG_PLIC_SUPPORTS_SOFT_INTERRUPT */
 
@@ -493,7 +506,7 @@ static void plic_irq_handler(const struct device *dev)
 	const struct _isr_table_entry *ite;
 	uint32_t cpu_id = arch_curr_cpu()->id;
 	/* Get the IRQ number generating the interrupt */
-	const uint32_t local_irq = sys_read32(claim_complete_addr);
+	const uint32_t local_irq = plic_read32(claim_complete_addr);
 
 #ifdef CONFIG_PLIC_SHELL_IRQ_COUNT
 	uint16_t *cpu_count = get_irq_hit_count_cpu(dev, cpu_id, local_irq);
@@ -544,7 +557,7 @@ static void plic_irq_handler(const struct device *dev)
 	 * getting handled so that we don't miss on the next edge-triggered interrupt.
 	 */
 	if (trig_val == PLIC_TRIG_EDGE) {
-		sys_write32(local_irq, claim_complete_addr);
+		plic_write32(local_irq, claim_complete_addr);
 	}
 #endif /* CONFIG_PLIC_SUPPORTS_TRIG_EDGE */
 
@@ -560,10 +573,10 @@ static void plic_irq_handler(const struct device *dev)
 #ifdef CONFIG_PLIC_SUPPORTS_TRIG_EDGE
 	/* Handle only if level-triggered */
 	if (trig_val == PLIC_TRIG_LEVEL) {
-		sys_write32(local_irq, claim_complete_addr);
+		plic_write32(local_irq, claim_complete_addr);
 	}
 #else
-	sys_write32(local_irq, claim_complete_addr);
+	plic_write32(local_irq, claim_complete_addr);
 #endif /* #ifdef CONFIG_PLIC_SUPPORTS_TRIG_EDGE */
 }
 
@@ -587,16 +600,16 @@ static int plic_init(const struct device *dev)
 
 		/* Ensure that all interrupts are disabled initially */
 		for (uint32_t i = 0; i < get_plic_enabled_size(dev); i++) {
-			sys_write32(0U, en_addr + (i * sizeof(uint32_t)));
+			plic_write32(0U, en_addr + (i * sizeof(uint32_t)));
 		}
 
 		/* Set threshold priority to 0 */
-		sys_write32(0U, thres_prio_addr);
+		plic_write32(0U, thres_prio_addr);
 	}
 
 	/* Set priority of each interrupt line to 0 initially */
 	for (uint32_t i = 0; i < config->nr_irqs; i++) {
-		sys_write32(0U, prio_addr + (i * sizeof(uint32_t)));
+		plic_write32(0U, prio_addr + (i * sizeof(uint32_t)));
 	}
 
 	/* Configure IRQ for PLIC driver */

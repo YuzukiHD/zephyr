@@ -147,6 +147,9 @@ SECTIONS
 
     GROUP_START(ROMABLE_REGION)
     __rom_region_start = ROM_BASE;
+#ifdef CONFIG_MMU
+    z_mapped_start = __rom_region_start;
+#endif
 
     SECTION_PROLOGUE(rom_start,,)
     {
@@ -418,7 +421,12 @@ GROUP_END(DTCM)
  */
 #include <snippets-sections.ld>
 
+#ifdef CONFIG_MMU
+/* the end of the image is the end of the last mapped page */
+#define LAST_RAM_ALIGN . = ALIGN(CONFIG_MMU_PAGE_SIZE);
+#else
 #define LAST_RAM_ALIGN MPU_MIN_SIZE_ALIGN
+#endif
 
 #include <zephyr/linker/ram-end.ld>
 

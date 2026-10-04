@@ -24,6 +24,14 @@ config ICACHE_LINE_SIZE
 config DCACHE_LINE_SIZE
 	default 64
 
+if SUN252I_F101_MMU
+
+# the room for k_mem_map() and the demand paged windows next to the 16 MiB RAM
+config KERNEL_VM_SIZE
+	default 0x2000000
+
+endif # SUN252I_F101_MMU
+
 if SUN252I_F101_RVV
 
 # Every interrupt and exception frame carries the vector registers (about

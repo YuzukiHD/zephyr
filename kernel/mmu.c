@@ -1275,7 +1275,16 @@ static inline void do_backing_store_page_out(uintptr_t location)
 #endif /* CONFIG_DEMAND_PAGING_TIMING_HISTOGRAM */
 }
 
-#if defined(CONFIG_SMP) && defined(CONFIG_DEMAND_PAGING_ALLOW_IRQ)
+/*
+ * The paging operations are serialized with a mutex on SMP, where the
+ * scheduler cannot be locked, and on UP when the backing store may sleep.
+ * Otherwise the scheduler is locked for the duration of the operation.
+ */
+#if defined(CONFIG_SMP) || defined(CONFIG_DEMAND_PAGING_BACKING_STORE_SLEEPS)
+#define Z_MM_PAGING_LOCK_IS_MUTEX 1
+#endif
+
+#if defined(Z_MM_PAGING_LOCK_IS_MUTEX) && defined(CONFIG_DEMAND_PAGING_ALLOW_IRQ)
 /*
  * SMP support is very simple. Some resources such as the scratch page could
  * be made per CPU, backing store driver execution be confined to the faulting
@@ -1387,7 +1396,7 @@ static int do_mem_evict(void *addr)
 	__ASSERT(!k_is_in_isr(),
 		 "%s is unavailable in ISRs with CONFIG_DEMAND_PAGING_ALLOW_IRQ",
 		 __func__);
-#ifdef CONFIG_SMP
+#ifdef Z_MM_PAGING_LOCK_IS_MUTEX
 	k_mutex_lock(&z_mm_paging_lock, K_FOREVER);
 #else
 	k_sched_lock();
@@ -1425,7 +1434,7 @@ static int do_mem_evict(void *addr)
 out:
 	k_spin_unlock(&z_mm_lock, key);
 #ifdef CONFIG_DEMAND_PAGING_ALLOW_IRQ
-#ifdef CONFIG_SMP
+#ifdef Z_MM_PAGING_LOCK_IS_MUTEX
 	k_mutex_unlock(&z_mm_paging_lock);
 #else
 	k_sched_unlock();
@@ -1473,7 +1482,7 @@ int k_mem_page_frame_evict(uintptr_t phys)
 	__ASSERT(!k_is_in_isr(),
 		 "%s is unavailable in ISRs with CONFIG_DEMAND_PAGING_ALLOW_IRQ",
 		 __func__);
-#ifdef CONFIG_SMP
+#ifdef Z_MM_PAGING_LOCK_IS_MUTEX
 	k_mutex_lock(&z_mm_paging_lock, K_FOREVER);
 #else
 	k_sched_lock();
@@ -1508,7 +1517,7 @@ int k_mem_page_frame_evict(uintptr_t phys)
 out:
 	k_spin_unlock(&z_mm_lock, key);
 #ifdef CONFIG_DEMAND_PAGING_ALLOW_IRQ
-#ifdef CONFIG_SMP
+#ifdef Z_MM_PAGING_LOCK_IS_MUTEX
 	k_mutex_unlock(&z_mm_paging_lock);
 #else
 	k_sched_unlock();
@@ -1666,7 +1675,7 @@ static bool do_page_fault(void *addr, bool pin)
 	 * As a result, sleeping/rescheduling in the SMP case is fine.
 	 */
 	__ASSERT(!k_is_in_isr(), "ISR page faults are forbidden");
-#ifdef CONFIG_SMP
+#ifdef Z_MM_PAGING_LOCK_IS_MUTEX
 	k_mutex_lock(&z_mm_paging_lock, K_FOREVER);
 #else
 	k_sched_lock();
@@ -1754,7 +1763,7 @@ static bool do_page_fault(void *addr, bool pin)
 out:
 	k_spin_unlock(&z_mm_lock, key);
 #ifdef CONFIG_DEMAND_PAGING_ALLOW_IRQ
-#ifdef CONFIG_SMP
+#ifdef Z_MM_PAGING_LOCK_IS_MUTEX
 	k_mutex_unlock(&z_mm_paging_lock);
 #else
 	k_sched_unlock();
