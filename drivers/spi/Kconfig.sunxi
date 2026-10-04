@@ -12,3 +12,16 @@ config SPI_SUNXI
 config SPI_SUNXI_INIT_PRIORITY
 	int "Allwinner sunxi SPI init priority"
 	default 81
+
+config SPI_SUNXI_DMA
+	bool "Receive long reads with DMA"
+	default y
+	depends on SPI_SUNXI && DMA
+	help
+	  Reads of at least SPI_SUNXI_DMA_MIN_LEN bytes into a 4 byte aligned
+	  buffer are moved by the DMA controller (the node needs 'dmas').
+
+config SPI_SUNXI_DMA_MIN_LEN
+	int "Shortest read that uses the DMA"
+	default 256
+	depends on SPI_SUNXI_DMA

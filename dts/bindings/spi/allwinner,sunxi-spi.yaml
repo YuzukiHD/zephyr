@@ -28,3 +28,16 @@ properties:
   clock-reg:
     type: int
     required: true
+
+  dmas:
+    description: |
+      Optional DMA channel for the receive data of long reads ("rx"). The
+      FIFO is drained by the DMA in 32 bit units; what is left below the
+      FIFO trigger level at the end of a transfer is read by the CPU.
+
+  dma-names:
+    description: '"rx"'
+
+  dma-slot:
+    type: int
+    description: request line (DRQ) of the SPI receive FIFO

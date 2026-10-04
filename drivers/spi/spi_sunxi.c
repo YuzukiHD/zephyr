@@ -8,10 +8,13 @@
 
 #include <errno.h>
 #include <zephyr/device.h>
+#include <zephyr/cache.h>
 #include <zephyr/drivers/clock_control.h>
+#include <zephyr/drivers/dma.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/drivers/reset.h>
 #include <zephyr/drivers/spi.h>
+#include <zephyr/drivers/spi/spi_sunxi.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/sys_io.h>
 #include <zephyr/sys/util.h>
@@ -39,6 +42,8 @@ LOG_MODULE_REGISTER(spi_sunxi, CONFIG_SPI_LOG_LEVEL);
 #define GC_MODE		BIT(1)
 #define GC_MODE_SEL	BIT(2)
 #define GC_TP_EN	BIT(7)
+#define SAMP_DL_SW_EN	BIT(7)
+#define SAMP_DL_SW	GENMASK(5, 0)
 #define GC_SRST	BIT(31)
 
 #define TC_CPHA		BIT(0)
@@ -51,6 +56,7 @@ LOG_MODULE_REGISTER(spi_sunxi, CONFIG_SPI_LOG_LEVEL);
 #define TC_DHB		BIT(8)
 #define TC_DDB		BIT(9)
 #define TC_FBS		BIT(12)
+#define TC_SDC		BIT(11)
 #define TC_SDM		BIT(13)
 #define TC_SDC1		BIT(15)
 #define TC_XCH		BIT(31)
@@ -58,6 +64,8 @@ LOG_MODULE_REGISTER(spi_sunxi, CONFIG_SPI_LOG_LEVEL);
 #define INT_STA_ERR	(BIT(8) | BIT(9) | BIT(10))
 #define INT_STA_TC	BIT(12)
 
+#define FIFO_RX_DRQ_EN	BIT(8)
+#define FIFO_RX_TRIG	32U
 #define FIFO_TX_RST	BIT(31)
 #define FIFO_RX_RST	BIT(15)
 #define FIFO_TX_CNT	GENMASK(23, 16)
@@ -67,6 +75,20 @@ LOG_MODULE_REGISTER(spi_sunxi, CONFIG_SPI_LOG_LEVEL);
 #define BCC_DBC		GENMASK(27, 24)
 #define BCC_DUAL	BIT(28)
 #define BCC_QUAD	BIT(29)
+
+/* sample mode (delay in half cycles) -> TC bits SDM, SDC, SDC1 */
+static const uint16_t sample_mode_bits[SUNXI_SPI_SAMPLE_MODES] = {
+	TC_SDM,
+	0,
+	TC_SDC,
+	TC_SDM | TC_SDC,
+	TC_SDM | TC_SDC1,
+	TC_SDC1,
+	TC_SDC | TC_SDC1,
+};
+
+#define SPI_HIGH_FREQ	60000000U	/* from here on the delay line is used */
+#define CCU_PLL_PERI	0x0020U
 
 #define CCU_BASE	0x02001000U
 #define SPI_MODULE_HZ	24000000U
@@ -83,10 +105,23 @@ struct sunxi_spi_config {
 	uint32_t clock_reg;
 	struct reset_dt_spec reset;
 	uint32_t clock_frequency;
+#ifdef CONFIG_SPI_SUNXI_DMA
+	const struct device *dma;	/* NULL: no DMA in the node */
+	uint32_t dma_channel;
+	uint32_t dma_slot;
+#endif
 };
 
 struct sunxi_spi_data {
 	struct spi_context ctx;
+	bool quad;		/* data phase with four wires */
+	bool sample_set;	/* a sample point was chosen with sunxi_spi_set_sample() */
+	uint8_t sample_mode;
+	uint8_t sample_delay;
+#ifdef CONFIG_SPI_SUNXI_DMA
+	struct k_sem dma_done;
+	int dma_status;
+#endif
 };
 
 static inline uint32_t sunxi_spi_read(const struct sunxi_spi_config *cfg,
@@ -101,6 +136,16 @@ static inline void sunxi_spi_write(const struct sunxi_spi_config *cfg,
 	sys_write32(value, cfg->base + offset);
 }
 
+static uint32_t sunxi_spi_pll_peri_1x(void)
+{
+	uint32_t pll = sys_read32(CCU_BASE + CCU_PLL_PERI);
+	uint32_t n = FIELD_GET(GENMASK(15, 8), pll) + 1U;
+	uint32_t p0 = FIELD_GET(GENMASK(18, 16), pll) + 1U;
+	uint32_t m = (pll & BIT(1)) ? 2U : 1U;
+
+	return SPI_MODULE_HZ / m / p0 * n / 2U;
+}
+
 static int sunxi_spi_set_clock(const struct sunxi_spi_config *cfg,
 				       uint32_t frequency)
 {
@@ -109,6 +154,36 @@ static int sunxi_spi_set_clock(const struct sunxi_spi_config *cfg,
 
 	if (frequency < 3000U) {
 		return -EINVAL;
+	}
+
+	if (frequency > SPI_MODULE_HZ) {
+		/*
+		 * PLL_PERI_1X divided by M (1..16) and P (1,2,4,8) in the CCU, the
+		 * controller's own divider is left at 1: SCK = module clock.
+		 */
+		uint32_t src = sunxi_spi_pll_peri_1x(), best = 0, best_m = 0, best_p = 0;
+
+		for (uint32_t p = 0; p < 4U; p++) {
+			for (uint32_t m = 0; m < 16U; m++) {
+				uint32_t rate = src / (m + 1U) / BIT(p);
+
+				if (rate <= frequency && rate > best) {
+					best = rate;
+					best_m = m;
+					best_p = p;
+				}
+			}
+		}
+		if (best == 0U) {
+			return -EINVAL;
+		}
+		sys_write32(BIT(31) | (1U << 24) | (best_p << 8) | best_m,
+			    CCU_BASE + cfg->clock_reg);
+		reg = sunxi_spi_read(cfg, SPI_CLK_CTL);
+		reg &= ~(GENMASK(11, 8) | BIT(12) | GENMASK(7, 0));
+		sunxi_spi_write(cfg, SPI_CLK_CTL, reg);
+
+		return 0;
 	}
 
 	/* The controller clock divider is SPI_MODULE_HZ / 2^N. */
@@ -149,6 +224,7 @@ static int sunxi_spi_configure(const struct device *dev,
 				       const struct spi_config *config)
 {
 	const struct sunxi_spi_config *cfg = dev->config;
+	struct sunxi_spi_data *data = dev->data;
 	uint32_t gc;
 	uint32_t tc;
 	int ret;
@@ -161,9 +237,11 @@ static int sunxi_spi_configure(const struct device *dev,
 		return -ENOTSUP;
 	}
 #ifdef CONFIG_SPI_EXTENDED_MODES
-	if ((config->operation & SPI_LINES_MASK) != SPI_LINES_SINGLE) {
+	if ((config->operation & SPI_LINES_MASK) != SPI_LINES_SINGLE &&
+	    (config->operation & SPI_LINES_MASK) != SPI_LINES_QUAD) {
 		return -ENOTSUP;
 	}
+	data->quad = (config->operation & SPI_LINES_MASK) == SPI_LINES_QUAD;
 #endif
 
 	ret = sunxi_spi_set_clock(cfg, config->frequency);
@@ -174,12 +252,23 @@ static int sunxi_spi_configure(const struct device *dev,
 	gc = sunxi_spi_read(cfg, SPI_GC);
 	gc |= GC_EN | GC_MODE | GC_TP_EN;
 	gc &= ~GC_MODE_SEL; /* legacy sample timing */
+	if (data->sample_set || config->frequency > SPI_HIGH_FREQ) {
+		gc |= GC_MODE_SEL; /* sample delay line */
+	}
 	sunxi_spi_write(cfg, SPI_GC, gc);
 
 	tc = sunxi_spi_read(cfg, SPI_TC);
 	tc &= ~(TC_CPHA | TC_CPOL | TC_SPOL | TC_SSCTL | TC_SS_SEL |
 		TC_SS_OWNER | TC_SS_LEVEL | TC_FBS | TC_SDC1);
-	tc |= TC_SDM | TC_DDB | (config->slave << 4) | TC_SS_LEVEL;
+	tc &= ~TC_SDC;
+	tc |= TC_DDB | (config->slave << 4) | TC_SS_LEVEL;
+	if (data->sample_set) {
+		tc |= sample_mode_bits[data->sample_mode];
+	} else if (config->frequency > SPI_HIGH_FREQ) {
+		tc |= sample_mode_bits[2];	/* one cycle */
+	} else {
+		tc |= TC_SDM;
+	}
 	if ((config->operation & SPI_MODE_CPHA) != 0U) {
 		tc |= TC_CPHA;
 	}
@@ -196,13 +285,14 @@ static int sunxi_spi_configure(const struct device *dev,
 		tc |= TC_SS_OWNER;
 	}
 	sunxi_spi_write(cfg, SPI_TC, tc);
+	sunxi_spi_write(cfg, SPI_SDC, data->sample_set ? (SAMP_DL_SW_EN | data->sample_delay) : 0U);
 
 	sunxi_spi_write(cfg, SPI_INT_CTL, 0U);
 	sunxi_spi_write(cfg, SPI_INT_STA, 0xffffffffU);
 	return sunxi_spi_reset_fifo(cfg);
 }
 
-static void sunxi_spi_set_counters(const struct sunxi_spi_config *cfg,
+static void sunxi_spi_set_counters(const struct sunxi_spi_config *cfg, bool quad,
 					uint32_t tx_len, uint32_t rx_len)
 {
 	uint32_t burst = tx_len + rx_len;
@@ -227,13 +317,103 @@ static void sunxi_spi_set_counters(const struct sunxi_spi_config *cfg,
 	reg = sunxi_spi_read(cfg, SPI_BCC);
 	reg &= ~(BCC_STC | BCC_DBC | BCC_DUAL | BCC_QUAD);
 	reg |= stc & BCC_STC;
+	/* the command bytes go out on one wire (STC), the data of a read on four */
+	if (quad && rx_len != 0U && tx_len != 0U && tx_len != rx_len) {
+		reg |= BCC_QUAD;
+	}
 	sunxi_spi_write(cfg, SPI_BCC, reg);
 }
 
-static int sunxi_spi_run_transfer(const struct sunxi_spi_config *cfg,
+#ifdef CONFIG_SPI_SUNXI_DMA
+static void sunxi_spi_dma_cb(const struct device *dma, void *user_data, uint32_t channel,
+			     int status)
+{
+	struct sunxi_spi_data *data = user_data;
+
+	ARG_UNUSED(dma);
+	ARG_UNUSED(channel);
+	data->dma_status = status;
+	k_sem_give(&data->dma_done);
+}
+
+/*
+ * Start the DMA for the bulk of a long read. Returns the number of bytes it
+ * will move (0: not used, the CPU does it all). The rest is below the FIFO
+ * trigger level at the end and is read by the CPU.
+ */
+static uint32_t sunxi_spi_dma_rx_start(const struct device *dev, struct spi_context *ctx,
+				       uint32_t rx_len)
+{
+	const struct sunxi_spi_config *cfg = dev->config;
+	struct sunxi_spi_data *data = dev->data;
+	uint32_t n = ROUND_DOWN(rx_len, FIFO_RX_TRIG);
+	struct dma_block_config blk = {
+		.source_address = cfg->base + SPI_RXDATA,
+		.source_addr_adj = DMA_ADDR_ADJ_NO_CHANGE,
+		.dest_addr_adj = DMA_ADDR_ADJ_INCREMENT,
+	};
+	struct dma_config dc = {
+		.dma_slot = cfg->dma_slot,
+		.channel_direction = PERIPHERAL_TO_MEMORY,
+		.complete_callback_en = 1U,
+		.source_data_size = 4U,
+		.dest_data_size = 4U,
+		.source_burst_length = 8U,
+		.dest_burst_length = 8U,
+		.block_count = 1U,
+		.head_block = &blk,
+		.dma_callback = sunxi_spi_dma_cb,
+		.user_data = data,
+	};
+
+	if (cfg->dma == NULL || !device_is_ready(cfg->dma) || rx_len < CONFIG_SPI_SUNXI_DMA_MIN_LEN ||
+	    !spi_context_rx_buf_on(ctx) || ctx->rx_len != rx_len ||
+	    ((uintptr_t)ctx->rx_buf & 63U) != 0U || n == 0U) {
+		return 0;
+	}
+	blk.dest_address = (uint32_t)(uintptr_t)ctx->rx_buf;
+	blk.block_size = n;
+	sys_cache_data_flush_and_invd_range(ctx->rx_buf, ROUND_UP(n, 64U));
+	k_sem_reset(&data->dma_done);
+	if (dma_config(cfg->dma, cfg->dma_channel, &dc) != 0 ||
+	    dma_start(cfg->dma, cfg->dma_channel) != 0) {
+		return 0;
+	}
+	sunxi_spi_write(cfg, SPI_FIFO_CTL, sunxi_spi_read(cfg, SPI_FIFO_CTL) | FIFO_RX_DRQ_EN);
+
+	return n;
+}
+
+static int sunxi_spi_dma_rx_finish(const struct device *dev, struct spi_context *ctx, uint32_t n)
+{
+	const struct sunxi_spi_config *cfg = dev->config;
+	struct sunxi_spi_data *data = dev->data;
+	int ret = k_sem_take(&data->dma_done, K_MSEC(2000));
+
+	if (ret != 0) {
+		dma_stop(cfg->dma, cfg->dma_channel);
+		ret = -ETIMEDOUT;
+	} else if (data->dma_status < 0) {
+		ret = -EIO;
+	}
+	sunxi_spi_write(cfg, SPI_FIFO_CTL, sunxi_spi_read(cfg, SPI_FIFO_CTL) & ~FIFO_RX_DRQ_EN);
+	sys_cache_data_invd_range(ctx->rx_buf, ROUND_UP(n, 64U));
+	if (ret == 0) {
+		spi_context_update_rx(ctx, 1, n);
+	}
+
+	return ret;
+}
+#endif
+
+static int sunxi_spi_run_transfer(const struct device *dev, bool quad,
 					struct spi_context *ctx,
 					uint32_t tx_len, uint32_t rx_len)
 {
+	const struct sunxi_spi_config *cfg = dev->config;
+#ifdef CONFIG_SPI_SUNXI_DMA
+	uint32_t dma_n = 0U;
+#endif
 	uint32_t deadline = 0U;
 	bool started = false;
 
@@ -241,7 +421,7 @@ static int sunxi_spi_run_transfer(const struct sunxi_spi_config *cfg,
 		return -EMSGSIZE;
 	}
 
-	sunxi_spi_set_counters(cfg, tx_len, rx_len);
+	sunxi_spi_set_counters(cfg, quad, tx_len, rx_len);
 	while (deadline++ < SPI_TIMEOUT_US) {
 		while (spi_context_tx_on(ctx) &&
 		       FIELD_GET(FIFO_TX_CNT, sunxi_spi_read(cfg, SPI_FIFO_STA)) < SPI_FIFO_DEPTH) {
@@ -252,18 +432,45 @@ static int sunxi_spi_run_transfer(const struct sunxi_spi_config *cfg,
 		}
 
 		if (!started) {
+#ifdef CONFIG_SPI_SUNXI_DMA
+			if (!spi_context_tx_on(ctx)) {
+				dma_n = sunxi_spi_dma_rx_start(dev, ctx, rx_len);
+			}
+#endif
 			sunxi_spi_write(cfg, SPI_TC, sunxi_spi_read(cfg, SPI_TC) | TC_XCH);
 			started = true;
+#ifdef CONFIG_SPI_SUNXI_DMA
+			if (dma_n != 0U) {
+				int ret = sunxi_spi_dma_rx_finish(dev, ctx, dma_n);
+
+				if (ret != 0) {
+					sunxi_spi_write(cfg, SPI_INT_STA, 0xffffffffU);
+					return ret;
+				}
+			}
+#endif
 		}
 
-		while (FIELD_GET(FIFO_RX_CNT, sunxi_spi_read(cfg, SPI_FIFO_STA)) != 0U) {
-			uint8_t value = sys_read8(cfg->base + SPI_RXDATA);
+		uint32_t cnt;
 
-			if (spi_context_rx_on(ctx)) {
-				if (spi_context_rx_buf_on(ctx)) {
-					*ctx->rx_buf = value;
+		/* drain what is there: the count is read once for the whole burst */
+		while ((cnt = FIELD_GET(FIFO_RX_CNT, sunxi_spi_read(cfg, SPI_FIFO_STA))) != 0U) {
+			/* a 32 bit read pops four bytes: straight into an aligned buffer */
+			while (cnt >= 4U && spi_context_rx_buf_on(ctx) && ctx->rx_len >= 4U &&
+			       ((uintptr_t)ctx->rx_buf & 3U) == 0U) {
+				*(uint32_t *)ctx->rx_buf = sys_read32(cfg->base + SPI_RXDATA);
+				spi_context_update_rx(ctx, 1, 4);
+				cnt -= 4U;
+			}
+			while (cnt-- != 0U) {
+				uint8_t value = sys_read8(cfg->base + SPI_RXDATA);
+
+				if (spi_context_rx_on(ctx)) {
+					if (spi_context_rx_buf_on(ctx)) {
+						*ctx->rx_buf = value;
+					}
+					spi_context_update_rx(ctx, 1, 1);
 				}
-				spi_context_update_rx(ctx, 1, 1);
 			}
 		}
 
@@ -315,7 +522,7 @@ static int sunxi_spi_transceive(const struct device *dev,
 	if (spi_cs_is_gpio(config)) {
 		spi_context_cs_control(ctx, true);
 	}
-	ret = sunxi_spi_run_transfer(cfg, ctx, tx_len, rx_len);
+	ret = sunxi_spi_run_transfer(dev, data->quad, ctx, tx_len, rx_len);
 	if (spi_cs_is_gpio(config)) {
 		spi_context_cs_control(ctx, false);
 	} else {
@@ -327,6 +534,20 @@ static int sunxi_spi_transceive(const struct device *dev,
 	ret = spi_context_wait_for_completion(ctx);
 	spi_context_release(ctx, ret);
 	return ret;
+}
+
+int sunxi_spi_set_sample(const struct device *dev, uint8_t mode, uint8_t delay)
+{
+	struct sunxi_spi_data *data = dev->data;
+
+	if (mode >= SUNXI_SPI_SAMPLE_MODES || delay > SAMP_DL_SW) {
+		return -EINVAL;
+	}
+	data->sample_mode = mode;
+	data->sample_delay = delay;
+	data->sample_set = true;
+
+	return 0;
 }
 
 static int sunxi_spi_init(const struct device *dev)
@@ -344,6 +565,9 @@ static int sunxi_spi_init(const struct device *dev)
 	};
 	int ret;
 
+#ifdef CONFIG_SPI_SUNXI_DMA
+	k_sem_init(&data->dma_done, 0, 1);
+#endif
 	ret = spi_context_cs_configure_all(&data->ctx);
 	if (ret != 0) {
 		return ret;
@@ -389,6 +613,16 @@ static DEVICE_API(spi, sunxi_spi_api) = {
 #endif
 };
 
+#ifdef CONFIG_SPI_SUNXI_DMA
+#define SUNXI_SPI_DMA_CFG(inst) \
+	COND_CODE_1(DT_INST_NODE_HAS_PROP(inst, dmas), \
+		    (.dma = DEVICE_DT_GET(DT_INST_DMAS_CTLR_BY_NAME(inst, rx)), \
+		     .dma_channel = DT_INST_DMAS_CELL_BY_NAME(inst, rx, channel), \
+		     .dma_slot = DT_INST_PROP(inst, dma_slot),), ())
+#else
+#define SUNXI_SPI_DMA_CFG(inst)
+#endif
+
 #define SUNXI_SPI_INIT(inst) \
 	PINCTRL_DT_INST_DEFINE(inst); \
 	static struct sunxi_spi_data sunxi_spi_data_##inst = { \
@@ -405,6 +639,7 @@ static DEVICE_API(spi, sunxi_spi_api) = {
 		.clock_reg = DT_INST_PROP(inst, clock_reg), \
 		.reset = RESET_DT_SPEC_INST_GET(inst), \
 		.clock_frequency = DT_INST_PROP(inst, clock_frequency), \
+		SUNXI_SPI_DMA_CFG(inst) \
 	}; \
 	SPI_DEVICE_DT_INST_DEFINE(inst, sunxi_spi_init, NULL, \
 		&sunxi_spi_data_##inst, &sunxi_spi_cfg_##inst, POST_KERNEL, \
