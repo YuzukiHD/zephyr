@@ -8,6 +8,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/cache.h>
 #include <zephyr/sys/util.h>
+#include <zephyr/arch/riscv/csr.h>
+
+#include "soc.h"
 
 int arch_dcache_invd_all(void)
 {
@@ -201,4 +204,32 @@ int arch_icache_flush_and_invd_range(void *addr, size_t size)
 	ARG_UNUSED(size);
 
 	return -ENOTSUP;
+}
+
+void arch_dcache_enable(void)
+{
+	arch_dcache_invd_all();
+	__asm__ volatile("csrs %0, %1\n fence" :: "i"(SUN252I_F101_CSR_MHCR),
+			 "r"(SUN252I_F101_MHCR_DE) : "memory");
+}
+
+void arch_dcache_disable(void)
+{
+	/* write back and drop everything while the cache still works */
+	arch_dcache_flush_and_invd_all();
+	__asm__ volatile("csrc %0, %1\n fence" :: "i"(SUN252I_F101_CSR_MHCR),
+			 "r"(SUN252I_F101_MHCR_DE) : "memory");
+}
+
+void arch_icache_enable(void)
+{
+	arch_icache_invd_all();
+	__asm__ volatile("csrs %0, %1\n fence.i" :: "i"(SUN252I_F101_CSR_MHCR),
+			 "r"(SUN252I_F101_MHCR_IE) : "memory");
+}
+
+void arch_icache_disable(void)
+{
+	__asm__ volatile("csrc %0, %1\n fence.i" :: "i"(SUN252I_F101_CSR_MHCR),
+			 "r"(SUN252I_F101_MHCR_IE) : "memory");
 }

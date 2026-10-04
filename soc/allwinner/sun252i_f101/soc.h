@@ -38,6 +38,8 @@
  * MHCR bits: IE/DE (enable I/D cache), WA, WB, RS, BPE, BTB, WBR, L0BTB.
  * MHINT bits: DPLD, AMR, IPLD, LPE (cache prefetch).
  */
+#define SUN252I_F101_MHCR_IE			BIT(0)
+#define SUN252I_F101_MHCR_DE			BIT(1)
 #define SUN252I_F101_MHCR_INIT			0x11FF
 #define SUN252I_F101_MHINT_INIT			0x16E30C
 

@@ -97,9 +97,11 @@ static int sunxi_wdt_setup(const struct device *dev, uint8_t options)
 	if (data->setup) {
 		return -EBUSY;
 	}
-	if (options != 0U) {
-		return -ENOTSUP;
-	}
+	/*
+	 * The counter cannot be stopped in sleep or while the CPU is halted by
+	 * a debugger, so WDT_OPT_PAUSE_* are accepted and not honoured.
+	 */
+	ARG_UNUSED(options);
 
 	/* F101 watchdog has a SoC-reset response and no callback stage. */
 	sunxi_wdt_disable_hw(cfg);

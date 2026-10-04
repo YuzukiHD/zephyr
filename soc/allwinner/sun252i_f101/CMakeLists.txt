@@ -4,6 +4,7 @@
 zephyr_include_directories(.)
 
 zephyr_sources(soc.c cache.c)
+zephyr_sources_ifdef(CONFIG_REBOOT reboot.c)
 zephyr_sources_ifdef(CONFIG_SUN252I_F101_RVV soc_irq.S)
 zephyr_sources_ifdef(CONFIG_SUN252I_F101_MMU mmu_regions.c)
 
