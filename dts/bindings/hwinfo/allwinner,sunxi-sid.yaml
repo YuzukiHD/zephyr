@@ -1,0 +1,12 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: Allwinner sunxi secure ID, the one time programmable fuses of the chip
+
+compatible: "allwinner,sunxi-sid"
+
+include: base.yaml
+
+properties:
+  reg:
+    required: true

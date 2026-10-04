@@ -455,6 +455,12 @@
 			status = "disabled";
 		};
 
+		/* fuses: the 128 bit chip identifier is the first four words */
+		sid: efuse@3006000 {
+			compatible = "allwinner,sunxi-sid";
+			reg = <0x03006000 0x1000>;
+		};
+
 		ve: video-codec@1c0e000 {
 			compatible = "allwinner,sunxi-ve";
 			reg = <0x01c0e000 0x1000>;

@@ -235,6 +235,15 @@ config HWINFO_SILABS_S2
 	help
 	  Enable Silabs Series 2 hwinfo driver.
 
+config HWINFO_SUNXI_SID
+	bool "Allwinner sunxi secure ID"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_SID_ENABLED
+	select HWINFO_HAS_DRIVER
+	help
+	  Device ID from the 128 bit chip identifier in the fuses of the
+	  Allwinner SoC; sunxi_sid_read() reads any fuse word.
+
 config HWINFO_ANDES
 	bool "Andes system ID"
 	default y
