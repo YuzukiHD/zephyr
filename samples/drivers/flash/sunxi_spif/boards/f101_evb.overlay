@@ -1,0 +1,72 @@
+/*
+ * The SPI NOR flash of the EVB (16 MiB) is on PC0..PC5, the pins of spi0.
+ *
+ * The first 5 MiB, the sketch at 0x500000 and some data at 0xf00000 are
+ * not ours; the partitions here are in blank space.
+ */
+
+#include <zephyr/dt-bindings/pinctrl/allwinner-pinctrl.h>
+
+&pio {
+	spif_pins: spif_pins {
+		spif_data {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PC, 0, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PC, 4, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PC, 2, 4)>;
+			bias-disable;
+			allwinner,drive-level = <3>;
+		};
+		spif_control {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PC, 1, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PC, 3, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PC, 5, 4)>;
+			bias-pull-up;
+			allwinner,drive-level = <3>;
+		};
+	};
+};
+
+&spi0 {
+	status = "disabled";
+};
+
+&spif {
+	status = "okay";
+	pinctrl-0 = <&spif_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <100000000>;
+	quad;
+	dtr;
+	clear-block-protect;
+	params-partition = "spif_params";
+	tune-partition = "spif_tune";
+	xip-partition = "spif_xip";
+
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* code of the Arduino core: data that is not constant */
+		spif_tune: partition@31000 {
+			label = "tune";
+			reg = <0x31000 0x1000>;
+		};
+		spif_xip: partition@800000 {
+			label = "xip";
+			reg = <0x800000 0x40000>;
+		};
+		spif_xip_test: partition@880000 {
+			label = "xip_test";
+			reg = <0x880000 0x40000>;
+		};
+		spif_scratch: partition@840000 {
+			label = "scratch";
+			reg = <0x840000 0x40000>;
+		};
+		spif_params: partition@fff000 {
+			label = "params";
+			reg = <0xfff000 0x1000>;
+		};
+	};
+};

@@ -1,0 +1,117 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Allwinner sunxi SPIF, a SPI NOR flash controller with descriptor DMA,
+  1/2/4 wire transfers and a memory window (XIP) through which the flash
+  contents can be read and executed in place.
+
+  The node is the flash device itself: it exposes the flash API and its
+  fixed-partitions child describes the layout. Sample point tuning
+  results are stored in the partition named by 'params-partition'.
+
+compatible: "allwinner,sunxi-spif"
+
+include: [flash-controller.yaml, pinctrl-device.yaml]
+
+properties:
+  reg:
+    required: true
+
+  reg-names:
+    required: true
+    description: '"ctrl" is the register block, "xip" the memory window'
+
+  clocks:
+    required: true
+
+  clock-names:
+    required: true
+
+  resets:
+    type: phandle-array
+    required: true
+
+  clock-reg:
+    type: int
+    required: true
+    description: offset of the module clock register in the CCU
+
+  clock-frequency:
+    type: int
+    required: true
+    description: |
+      SCK frequency in Hz of the normal (tuned) operation. The device is
+      identified at a low frequency first.
+
+  size:
+    type: int
+    description: |
+      Flash capacity in bits. When absent the capacity is taken from the
+      JEDEC ID (density byte, 2^n bytes).
+
+  jedec-id:
+    type: uint8-array
+    description: expected JEDEC ID, checked at init when present
+
+  quad:
+    type: boolean
+    description: |
+      Read and program with four wires. The quad enable bit of the flash
+      is set at init (Winbond/GigaDevice/XMC/Puya style, bit 1 of status
+      register 2, or bit 6 of status register 1 for Macronix).
+
+  dtr:
+    type: boolean
+    description: |
+      Use the 1-4-4 double data rate read (needs 'quad', 3 byte addresses).
+      The flash is probed at init (and the sample point is tuned for it);
+      when it does not answer correctly the driver stays with SDR reads.
+      The module clock then runs at twice the SCK for reads.
+
+  dtr-read-opcode:
+    type: int
+    default: 0xee
+    description: opcode of the 1-4-4 DTR read (0xee, 0xed on some parts)
+
+  dtr-read-dummy:
+    type: int
+    default: 0
+    description: |
+      Dummy clock cycles of the DTR read, 1..12. 0 finds the count by
+      trying them against known data.
+
+  clear-block-protect:
+    type: boolean
+    description: |
+      Clear the block protect bits of the flash at init. A protected flash
+      ignores erase and program commands without reporting an error. The
+      bits are non volatile: the flash stays unprotected afterwards.
+
+  address-4byte:
+    type: boolean
+    description: |
+      The flash is larger than 16 MiB and is addressed with four bytes.
+      Derived from the capacity when absent.
+
+  params-partition:
+    type: string
+    description: |
+      Node label of the partition (a sector or more) that holds the tuned
+      sample point. When absent tuning results cannot be saved. It is a
+      name and not a phandle because a reference from the flash node to
+      its own child would be a cycle in the devicetree.
+
+  tune-partition:
+    type: string
+    description: |
+      Node label of the partition whose first 4 KiB is read back at every
+      candidate sample point to judge it; it has to hold data that is not
+      constant (for example a boot image). Defaults to the start of the
+      flash.
+
+  xip-partition:
+    type: string
+    description: |
+      Node label of the partition that is mapped to the memory window when
+      the driver is configured to enable XIP at init.

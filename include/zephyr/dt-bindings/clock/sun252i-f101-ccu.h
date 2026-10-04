@@ -31,6 +31,9 @@
 
 /* SPI bus clocks, gates in SPI_BGR_REG (0x096C) */
 #define CLK_BUS_SPI0			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x096c, 0)
+
+/* SPIF bus clock, gate in SPIF_BGR_REG (0x0984); the module clock is at 0x0980 */
+#define CLK_BUS_SPIF			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x0984, 0)
 #define CLK_BUS_SPI1			ALLWINNER_CCU_ID(ALLWINNER_CCU_MAIN, 0x096c, 1)
 
 /* SPI module clocks, gates in SPI0/1_CLK_REG (0x0940/0x0944) */

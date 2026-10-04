@@ -18,7 +18,11 @@ extern "C" {
 typedef struct pinctrl_soc_pin_t {
 	uint32_t pinmux;
 	uint8_t pull;
+	/* drive level 0..3, ALLWINNER_PIO_DRIVE_KEEP leaves the reset value */
+	uint8_t drive;
 } pinctrl_soc_pin_t;
+
+#define ALLWINNER_PIO_DRIVE_KEEP	0xff
 
 #define ALLWINNER_PIO_PULL_NONE		0
 #define ALLWINNER_PIO_PULL_UP		1
@@ -33,7 +37,9 @@ typedef struct pinctrl_soc_pin_t {
 #define Z_PINCTRL_STATE_PIN_INIT(node_id, prop, idx)				\
 	{									\
 		.pinmux = DT_PROP_BY_IDX(node_id, prop, idx),			\
-		.pull = ALLWINNER_DT_PULL(node_id)				\
+		.pull = ALLWINNER_DT_PULL(node_id),				\
+		.drive = DT_PROP_OR(node_id, allwinner_drive_level,		\
+				    ALLWINNER_PIO_DRIVE_KEEP)			\
 	},
 
 #define Z_PINCTRL_STATE_PINS_INIT(node_id, prop)				\

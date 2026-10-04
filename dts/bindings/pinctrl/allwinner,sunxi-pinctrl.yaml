@@ -71,5 +71,6 @@ child-binding:
       allwinner,drive-level:
         type: int
         description: |
-          Pad drive level (0..3). Not applied by the pinctrl driver; used by
-          the display pipeline for its LVDS/DSI lanes.
+          Pad drive level (0..3), applied by the pinctrl driver when
+          present; the reset value is kept otherwise. The display pipeline
+          also reads it for its LVDS/DSI lanes.

@@ -510,6 +510,26 @@
 			resets = <&rctl RST_BUS_SPI0>;
 			clock-frequency = <10000000>;
 			clock-reg = <0x940>;
+			dmas = <&dma 7>;
+			dma-names = "rx";
+			dma-slot = <22>;
+			status = "disabled";
+		};
+
+		/*
+		 * SPI NOR flash controller: command/descriptor DMA registers and
+		 * the window through which the flash can be read and executed
+		 * in place.
+		 */
+		spif: flash-controller@c000000 {
+			compatible = "allwinner,sunxi-spif";
+			reg = <0x0c000000 0x1000>, <0x0e000000 0x2000000>;
+			reg-names = "ctrl", "xip";
+			clocks = <&cctl CLK_BUS_SPIF>;
+			clock-names = "bus";
+			resets = <&rctl RST_BUS_SPIF>;
+			clock-reg = <0x980>;
+			clock-frequency = <100000000>;
 			status = "disabled";
 		};
 
@@ -523,6 +543,9 @@
 			resets = <&rctl RST_BUS_SPI1>;
 			clock-frequency = <10000000>;
 			clock-reg = <0x944>;
+			dmas = <&dma 8>;
+			dma-names = "rx";
+			dma-slot = <23>;
 			status = "disabled";
 		};
 

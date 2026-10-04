@@ -25,7 +25,8 @@
 #define PINCTRL_HW_INFO		sunxi_pio_hw_info_get(DT_INST_PROP(0, allwinner_pio_hw_type))
 
 static int pinctrl_sunxi_set_pin(const struct sunxi_pio_hw_info *hw,
-				 uint32_t base, uint32_t pinmux, uint8_t pull)
+				 uint32_t base, uint32_t pinmux, uint8_t pull,
+				 uint8_t drive)
 {
 	uint32_t pin = ALLWINNER_PINMUX_PIN(pinmux);
 	uint32_t muxsel = ALLWINNER_PINMUX_MUXSEL(pinmux);
@@ -56,6 +57,16 @@ static int pinctrl_sunxi_set_pin(const struct sunxi_pio_hw_info *hw,
 	sys_write32(reg, bank_base + hw->pull_regs_offset +
 		    (num / hw->pull_pins_per_reg) * 4);
 
+	/* drive level */
+	if (drive <= 3U) {
+		uint32_t shift = (num % hw->drv_pins_per_reg) * hw->drv_pins_bits;
+		uint32_t mask = (BIT(hw->drv_pins_bits) - 1U) << shift;
+
+		reg = bank_base + hw->drv_regs_offset +
+		      (num / hw->drv_pins_per_reg) * 4;
+		sys_write32((sys_read32(reg) & ~mask) | ((uint32_t)drive << shift), reg);
+	}
+
 	return 0;
 }
 
@@ -74,7 +85,8 @@ int pinctrl_configure_pins(const pinctrl_soc_pin_t *pins, uint8_t pin_cnt,
 
 	for (i = 0; i < pin_cnt; i++) {
 		ret = pinctrl_sunxi_set_pin(hw, PINCTRL_BASE_ADDR,
-					    pins[i].pinmux, pins[i].pull);
+					    pins[i].pinmux, pins[i].pull,
+					    pins[i].drive);
 		if (ret < 0) {
 			return ret;
 		}

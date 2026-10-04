@@ -1,0 +1,23 @@
+sample:
+  name: Allwinner SPIF flash controller
+  description: Tuning, stored parameters, erase/program and the XIP window of the SPIF driver
+tests:
+  sample.drivers.flash.sunxi_spif:
+    platform_allow:
+      - f101_evb
+    tags: flash
+    harness: console
+    harness_config:
+      type: one_line
+      regex:
+        - "PASS \\(0 failures\\)"
+  sample.drivers.flash.sunxi_spif.xip_sections:
+    platform_allow:
+      - f101_evb
+    tags: flash
+    extra_args: EXTRA_CONF_FILE=xip.conf
+    harness: console
+    harness_config:
+      type: one_line
+      regex:
+        - "PASS \\(0 failures\\)"

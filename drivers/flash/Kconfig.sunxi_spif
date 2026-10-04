@@ -1,0 +1,63 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+config FLASH_SUNXI_SPIF
+	bool "Allwinner SPIF SPI NOR flash controller"
+	default y
+	depends on DT_HAS_ALLWINNER_SUNXI_SPIF_ENABLED
+	select PINCTRL
+	select RESET
+	select CRC
+	select FLASH_HAS_DRIVER_ENABLED
+	select FLASH_HAS_PAGE_LAYOUT
+	select FLASH_HAS_EXPLICIT_ERASE
+	help
+	  Enable the driver of the Allwinner SPIF controller: JEDEC SPI NOR
+	  flash with 1/4 wire reads and page programs, sample point tuning,
+	  stored tuning results and the XIP memory window.
+
+if FLASH_SUNXI_SPIF
+
+config FLASH_SUNXI_SPIF_INIT_PRIORITY
+	int "Init priority"
+	default 50
+
+config FLASH_SUNXI_SPIF_TUNE_MIN_WINDOW
+	int "Narrowest accepted window of sample delay steps"
+	default 8
+	range 1 64
+	help
+	  A window narrower than this is not trusted (temperature and voltage
+	  move it) and the tuning tries a lower frequency.
+
+config FLASH_SUNXI_SPIF_TUNE_AT_INIT
+	bool "Tune the sample point at init when no result is stored"
+	default y
+	help
+	  The flash is read at 24 MHz and at the configured frequency with
+	  every sample mode and delay, the widest window of correct reads is
+	  used, and the result is stored when the node has a params
+	  partition. Without it the controller stays at 24 MHz.
+
+config FLASH_SUNXI_SPIF_XIP_AT_INIT
+	bool "Map the xip-partition into the address space at init"
+	help
+	  Needs the 'xip-partition' property of the node.
+
+config FLASH_SUNXI_SPIF_XIP_SECTIONS
+	bool "Link code and data into the XIP window"
+	depends on FLASH_SUNXI_SPIF_XIP_AT_INIT
+	help
+	  Functions marked __xip_text and constants marked __xip_rodata
+	  (zephyr/drivers/flash/flash_sunxi_spif.h) are linked at the address
+	  of the memory window and run from the flash. Their image is part of
+	  the flat image; at init the driver compares it with the xip-partition
+	  and programs the partition when it differs, then maps it.
+
+config FLASH_SUNXI_SPIF_XIP_BASE
+	hex "Address of the XIP window"
+	default 0x0e000000
+	help
+	  Must be the base of the "xip" register block of the node.
+
+endif # FLASH_SUNXI_SPIF
