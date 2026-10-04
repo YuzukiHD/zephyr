@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "Demand paging of a file"
+
+config SAMPLE_PAGING_FILE
+	string "File to map"
+	default "/SD:/Pokemon-FireRed.gba"
+
+source "Kconfig.zephyr"

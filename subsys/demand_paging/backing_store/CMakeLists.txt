@@ -17,6 +17,8 @@ if(NOT DEFINED CONFIG_BACKING_STORE_CUSTOM)
     backing_store_qemu_x86_tiny.c
     )
 
+  zephyr_library_sources_ifdef(CONFIG_BACKING_STORE_FS backing_store_fs.c)
+
   zephyr_library_sources_ifdef(
     CONFIG_BACKING_STORE_ONDEMAND_SEMIHOST
     backing_store_ondemand_semihost.c

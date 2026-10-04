@@ -29,6 +29,17 @@ config BACKING_STORE_QEMU_X86_TINY_FLASH
 	  area, allowing testing of the demand paging mechanism on
 	  code and data.
 
+config BACKING_STORE_FS
+	bool "Read-only backing store on a file of the file system"
+	depends on FILE_SYSTEM
+	select DEMAND_PAGING_BACKING_STORE_SLEEPS if !SMP
+	help
+	  Memory is mapped from a file with k_mem_paging_map_file() and its pages
+	  are read from the file system when they are touched; they are
+	  dropped when the frame is needed, never written. Other memory
+	  (from k_mem_map()) has to be pinned, there is nowhere to page it
+	  out to.
+
 config BACKING_STORE_ONDEMAND_SEMIHOST
 	bool "Backing store for on-demand linker section using semihosting"
 	depends on SEMIHOST && LINKER_USE_ONDEMAND_SECTION
