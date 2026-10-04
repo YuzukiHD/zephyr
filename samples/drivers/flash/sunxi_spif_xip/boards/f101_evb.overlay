@@ -1,0 +1,25 @@
+/*
+ * The image is linked into the memory window of the SPIF controller. The
+ * window maps the flash from the offset the boot stub programs (boot/) at
+ * 0x0e000000.
+ */
+
+/ {
+	soc {
+		xip_flash: flash@e000000 {
+			compatible = "soc-nv-flash";
+			reg = <0x0e000000 0x200000>;
+			erase-block-size = <4096>;
+			write-block-size = <1>;
+		};
+	};
+
+	chosen {
+		zephyr,flash = &xip_flash;
+	};
+};
+
+/* spi0 uses the pins of the flash (PC0..PC5): switching them away would cut the window off */
+&spi0 {
+	status = "disabled";
+};

@@ -1,0 +1,9 @@
+sample:
+  name: XIP from the SPIF flash window
+  description: Run the whole image from the memory window of the SPIF controller
+tests:
+  sample.drivers.flash.sunxi_spif_xip:
+    platform_allow:
+      - f101_evb
+    tags: flash
+    build_only: true
