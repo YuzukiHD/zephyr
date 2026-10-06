@@ -18,6 +18,7 @@ if(NOT DEFINED CONFIG_BACKING_STORE_CUSTOM)
     )
 
   zephyr_library_sources_ifdef(CONFIG_BACKING_STORE_FS backing_store_fs.c)
+  zephyr_library_sources_ifdef(CONFIG_BACKING_STORE_SWAP backing_store_swap.c)
 
   zephyr_library_sources_ifdef(
     CONFIG_BACKING_STORE_ONDEMAND_SEMIHOST

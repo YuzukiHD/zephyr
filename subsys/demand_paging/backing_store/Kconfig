@@ -40,6 +40,18 @@ config BACKING_STORE_FS
 	  (from k_mem_map()) has to be pinned, there is nowhere to page it
 	  out to.
 
+config BACKING_STORE_SWAP
+	bool "Swap file backing store for a region of anonymous memory"
+	depends on FILE_SYSTEM
+	select DEMAND_PAGING_BACKING_STORE_SLEEPS if !SMP
+	help
+	  A region mapped with k_mem_paging_swap_map() can be larger than the
+	  page frames that are left: its pages are written to a swap file
+	  when the frame is needed and read back when they are touched again.
+	  Pages that were not changed since they were read are dropped, not
+	  written a second time. The swap file grows with the pages that are written
+	  out. Other memory from k_mem_map() has to be pinned.
+
 config BACKING_STORE_ONDEMAND_SEMIHOST
 	bool "Backing store for on-demand linker section using semihosting"
 	depends on SEMIHOST && LINKER_USE_ONDEMAND_SECTION
