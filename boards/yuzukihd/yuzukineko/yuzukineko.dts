@@ -20,6 +20,7 @@
 		zephyr,shell-uart = &uart1;
 		zephyr,sram = &sram0;
 		zephyr,display = &display;
+		zephyr,touch = &touch;
 	};
 
 	aliases {
@@ -41,7 +42,7 @@
 		};
 	};
 
-	/* I2C: TWI0 on PE08/PE09 (also UART3 of the EVB), TWI1 on PB00/PB01, TWI2 on PD10/PD11 */
+	/* I2C: TWI0 on PE08/PE09 (also UART3 of the EVB), TWI1 on PD0/PD1 (touch), TWI2 on PD10/PD11 */
 	twi0_pins: twi0_pins {
 		twi0_pins_group {
 			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 8, 4)
@@ -52,8 +53,8 @@
 
 	twi1_pins: twi1_pins {
 		twi1_pins_group {
-			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 0, 3)
-				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 1, 3)>;
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 0, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 1, 4)>;
 			bias-pull-up;
 		};
 	};
@@ -216,6 +217,22 @@
 	status = "okay";
 	pinctrl-0 = <&twi0_pins>;
 	pinctrl-names = "default";
+};
+
+/* touch panel controller (GT967) of the carrier board: SCL PD0, SDA PD1, INT PD2, RST PD3 */
+&i2c1 {
+	status = "okay";
+	pinctrl-0 = <&twi1_pins>;
+	pinctrl-names = "default";
+
+	touch: touch@5d {
+		compatible = "goodix,gt967";
+		reg = <0x5d>;
+		screen-width = <1024>;
+		screen-height = <768>;
+		irq-gpios = <&gpiod 2 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpiod 3 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &spi0 {
