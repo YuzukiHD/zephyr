@@ -27,24 +27,21 @@
 	};
 };
 
-/* UART1 console on PB00 (TX) / PB01 (RX), muxsel 4 */
+/*
+ * Pin groups of the whole board. PD0..PD21 are LCD pins: the RGB panel of the EVB takes all of
+ * them (so the DBI and SPI1 on PD0..PD5 stay off), the DSI panel of the carrier board takes
+ * PD12..PD21 and PD9 as reset.
+ */
 &pio {
+	/* UART1 console on PB00 (TX) / PB01 (RX), muxsel 4 */
 	uart1_pins: uart1_pins {
 		uart1_tx_rx {
 			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 0, 4)
 				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 1, 4)>;
 		};
 	};
-};
 
-&uart1 {
-	status = "okay";
-	current-speed = <115200>;
-	pinctrl-0 = <&uart1_pins>;
-	pinctrl-names = "default";
-};
-
-&pio {
+	/* I2C: TWI0 on PE08/PE09 (also UART3 of the EVB), TWI1 on PB00/PB01, TWI2 on PD10/PD11 */
 	twi0_pins: twi0_pins {
 		twi0_pins_group {
 			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 8, 4)
@@ -68,15 +65,8 @@
 			bias-pull-up;
 		};
 	};
-};
 
-&i2c0 {
-	status = "okay";
-	pinctrl-0 = <&twi0_pins>;
-	pinctrl-names = "default";
-};
-
-&pio {
+	/* SPI0 on PC0..PC5 (the SPI NOR flash controller uses the same pins), SPI1 on PD0..PD5 */
 	spi0_pins: spi0_pins {
 		spi0_data {
 			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PC, 0, 3)
@@ -106,44 +96,16 @@
 			bias-pull-up;
 		};
 	};
-};
 
-&spi0 {
-	status = "okay";
-	pinctrl-0 = <&spi0_pins>;
-	pinctrl-names = "default";
-};
-
-&wdt {
-	status = "okay";
-};
-
-&pio {
+	/* PWM0-2 on PD22 (carrier board backlight) */
 	pwm0_pins: pwm0_pins {
 		pwm0_group {
-			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 6, 6)
-				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 7, 6)
-				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 8, 6)
-				  ALLWINNER_PINMUX(ALLWINNER_PIO_PB, 3, 7)>;
+			/* PD22 is PWM0-2 */
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 22, 4)>;
 		};
 	};
-};
 
-&pwm {
-	status = "okay";
-	pinctrl-0 = <&pwm0_pins>;
-	pinctrl-names = "default";
-};
-
-&adc {
-	status = "okay";
-};
-
-&dma {
-	status = "okay";
-};
-
-&pio {
+	/* MIPI DBI on PD0..PD3/PD5 */
 	dbi1_pins: dbi1_pins {
 		dbi1_group {
 			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 0, 3)
@@ -154,17 +116,8 @@
 			bias-disable;
 		};
 	};
-};
 
-&dbi {
-	status = "okay";
-	pinctrl-0 = <&dbi1_pins>;
-	pinctrl-names = "default";
-};
-
-
-
-&pio {
+	/* TF card slot on SMHC0 (PF0..PF5, shared with the JTAG port) */
 	smhc0_pins: smhc0_pins {
 		smhc0_clk {
 			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PF, 2, 2)>;
@@ -180,24 +133,7 @@
 		};
 	};
 
-};
-
-/* pins shared with the LCD */
-&dbi {
-	status = "disabled";
-};
-
-&pwm {
-	status = "disabled";
-};
-
-/*
- * 1024x600 RGB666 panel of the EVB:
- *
- *   de0 -> tcon_lcd0 -> rgb0 -> panel0 (no backlight is wired yet: PB0..PB3 are free, PB0/PB1 are
- *   the UART1 console)
- */
-&pio {
+	/* RGB panel: 18 bit parallel RGB on PD0..PD9, PD12..PD21, PE6, PE7 */
 	rgb_pins: rgb_pins {
 		rgb_lcd {
 			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 0, 2)
@@ -224,17 +160,217 @@
 				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 21, 2)>;
 		};
 	};
+
+	/* MIPI DSI panel: 4 lanes and the clock on PD12..PD21 */
+	dsi_pins: dsi_pins {
+		dsi_lanes {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 12, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 13, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 14, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 15, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 16, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 17, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 18, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 19, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 20, 4)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 21, 4)>;
+			allwinner,drive-level = <3>;
+		};
+	};
+};
+
+/* System */
+&dma {
+	status = "okay";
+};
+
+&wdt {
+	status = "okay";
+};
+
+/* DE at top priority, RISCV capped */
+&mbus {
+	status = "okay";
+
+	display-engine@10 {
+		reg = <SUN252I_F101_MBUS_MASTER_DE>;
+		priority = <3>;
+	};
+
+	cpu@27 {
+		reg = <SUN252I_F101_MBUS_MASTER_RISCV>;
+		bandwidth-limit-mbps = <500>;
+	};
+};
+
+/* Console */
+&uart1 {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart1_pins>;
+	pinctrl-names = "default";
+};
+
+/* Buses and converters */
+&i2c0 {
+	status = "okay";
+	pinctrl-0 = <&twi0_pins>;
+	pinctrl-names = "default";
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-0 = <&spi0_pins>;
+	pinctrl-names = "default";
+};
+
+/* PWM0-2 drives the backlight of the carrier board panel, see backlight_dsi */
+&pwm {
+	status = "okay";
+	pinctrl-0 = <&pwm0_pins>;
+	pinctrl-names = "default";
+};
+
+&adc {
+	status = "okay";
+};
+
+/* pins shared with the LCD */
+&dbi {
+	status = "disabled";
+	pinctrl-0 = <&dbi1_pins>;
+	pinctrl-names = "default";
+};
+
+/* Storage */
+/*
+ * TF card slot on SMHC0 (4 bit, card detect on PF06, low with a card in). SMHC2
+ * (the WiFi SDIO port) stays off: its clock pin PE02 is the USB VBUS switch.
+ */
+&smhc0 {
+	pinctrl-0 = <&smhc0_pins>;
+	pinctrl-names = "default";
+	bus-width = <4>;
+	cd-gpios = <&gpiof 6 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	sdmmc {
+		compatible = "zephyr,sdmmc-disk";
+		disk-name = "SD";
+		status = "okay";
+	};
+};
+
+/* USB */
+/*
+ * USB 2.0 port: the OTG (device) controller and the EHCI/OHCI host controllers
+ * share one PHY, an application starts the stack of the role it needs. PE02
+ * drives VBUS for the host role.
+ */
+&usbphy {
+	vbus-gpios = <&gpioe 2 0>;
+	status = "okay";
+};
+
+&usbhci {
+	status = "okay";
+};
+
+&usbotg {
+	status = "okay";
+};
+
+/* Audio */
+/*
+ * On-chip audio codec: headphone out, the external speaker amplifier is enabled by PD4 (PHDN,
+ * high = on; the EVB board file uses PE10). Its DMA streams use channels 1 (DAC) and 2 (ADC) of
+ * the DMA controller.
+ */
+&audio_codec {
+	status = "okay";
+};
+
+&codec_analog {
+	pa-gpios = <&gpiod 4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+/* Multimedia accelerators */
+/* 2D graphics accelerator */
+&g2d {
+	status = "okay";
+};
+
+/* Video engine: hardware JPEG, PNG and H.264 decoder */
+&ve {
+	status = "okay";
+};
+
+/*
+ * Display: de0 -> tcon_lcd0 -> one of two outputs, only one of them is on:
+ *
+ *   rgb0 -> panel0          1024x600 RGB666 panel of the EVB (off here, the EVB board file
+ *                           switches it on)
+ *   dsi0 (dphy0) -> panel_dsi   1024x768 IPS MIPI DSI panel (JD9168S) of the carrier board:
+ *                           4 lanes, reset PD9, backlight PWM0-2 on PD22
+ */
+&de0 {
+	status = "okay";
+	brightness = <50>;
+	contrast = <50>;
+	saturation = <57>;
+	hue = <50>;
+};
+
+&tcon_top0 {
+	status = "okay";
+};
+
+&tcon_lcd0 {
+	status = "okay";
+};
+
+&display {
+	status = "okay";
+	width = <1024>;
+	height = <768>;
+};
+
+/* RGB output */
+&rgb0 {
+	status = "disabled";
+	pinctrl-0 = <&rgb_pins>;
+	pinctrl-names = "default";
+	hv-mode = <SUNXI_HV_PARALLEL_RGB>;
+	rgb-swap = <5>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel0>;
+			};
+		};
+	};
 };
 
 / {
 	panel0: panel {
+		status = "disabled";
 		compatible = "panel-simple";
 		width = <1024>;
 		height = <600>;
 		width-mm = <154>;
 		height-mm = <86>;
 		bus-format = "rgb666-1x18";
-			enable-delay-ms = <50>;
+		enable-delay-ms = <50>;
 
 		/* PD22 switches the panel supply */
 		power-on-sequence = <SUNXI_CMD_GPIO(SUNXI_PIN(ALLWINNER_PIO_PD, 22), 1)
@@ -259,28 +395,15 @@
 	};
 };
 
-&de0 {
-	status = "okay";
-	brightness = <50>;
-	contrast = <50>;
-	saturation = <57>;
-	hue = <50>;
-};
-
-&tcon_top0 {
+/* MIPI DSI output */
+&dphy0 {
 	status = "okay";
 };
 
-&tcon_lcd0 {
+&dsi0 {
 	status = "okay";
-};
-
-&rgb0 {
-	status = "okay";
-	pinctrl-0 = <&rgb_pins>;
+	pinctrl-0 = <&dsi_pins>;
 	pinctrl-names = "default";
-	hv-mode = <SUNXI_HV_PARALLEL_RGB>;
-	rgb-swap = <5>;
 
 	ports {
 		#address-cells = <1>;
@@ -293,88 +416,90 @@
 
 			endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&panel0>;
+				remote-endpoint = <&panel_dsi>;
 			};
 		};
 	};
 };
 
-&display {
-	status = "okay";
-	width = <1024>;
-	height = <600>;
-};
-
-/* DE at top priority, RISCV capped */
-&mbus {
-	status = "okay";
-
-	display-engine@10 {
-		reg = <SUN252I_F101_MBUS_MASTER_DE>;
-		priority = <3>;
+/ {
+	/* PWM0-2 on PD22, low = on */
+	backlight_dsi: backlight-dsi {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 2 1000000 PWM_POLARITY_INVERTED>;
+		max-level = <255>;
+		default-level = <96>;
 	};
 
-	cpu@27 {
-		reg = <SUN252I_F101_MBUS_MASTER_RISCV>;
-		bandwidth-limit-mbps = <500>;
+	panel_dsi: panel-dsi {
+		compatible = "panel-dsi";
+		width = <1024>;
+		height = <768>;
+		width-mm = <65>;
+		height-mm = <48>;
+		data-lanes = <0 1 2 3>;
+		mipi-dsi-format = "rgb888";
+		mode-flags = <(SUNXI_DSI_MODE_VIDEO | SUNXI_DSI_MODE_VIDEO_SYNC_PULSE |
+			       SUNXI_DSI_MODE_LPM)>;
+		enable-delay-ms = <20>;
+		backlight = <&backlight_dsi>;
+
+		/* PD9 = reset */
+		power-on-sequence = <SUNXI_CMD_GPIO(SUNXI_PIN(ALLWINNER_PIO_PD, 9), 1)
+				     SUNXI_CMD_DELAY(100)
+				     SUNXI_CMD_GPIO(SUNXI_PIN(ALLWINNER_PIO_PD, 9), 0)
+				     SUNXI_CMD_DELAY(100)
+				     SUNXI_CMD_GPIO(SUNXI_PIN(ALLWINNER_PIO_PD, 9), 1)
+				     SUNXI_CMD_DELAY(100)>;
+		init-sequence = <SUNXI_CMD_DCS(0, 4, 0xdf 0x91 0x68 0xf9)
+				 SUNXI_CMD_DCS(0, 2, 0xde 0x00)
+				 SUNXI_CMD_DCS(0, 3, 0xb2 0x00 0x7e)
+				 SUNXI_CMD_DCS(0, 3, 0xb3 0x00 0x7e)
+				 SUNXI_CMD_DCS(0, 7, 0xc1 0x00 0x10 0x00 0x00 0x00 0x00)
+				 SUNXI_CMD_DCS(0, 8, 0xbb 0x02 0x24 0x07 0x61 0x19 0x44 0x44)
+				 SUNXI_CMD_DCS(0, 3, 0xbe 0x1a 0xf2)
+				 SUNXI_CMD_DCS(0, 15, 0xc3 0x10 0x17 0x5a 0x17 0x5a 0x05 0x05 0x05 0x05 0x15 0x15 0x31 0x05 0xdf)
+				 SUNXI_CMD_DCS(0, 8, 0xc4 0x11 0x80 0x00 0xdf 0x09 0x06 0x14)
+				 SUNXI_CMD_DCS(0, 24, 0xce 0x00 0x03 0x03 0x03 0x03 0x03 0x03 0x03 0x03 0x03 0x03 0x03 0x03 0x03 0x03 0x03 0x03 0x03 0x03 0x03 0x03 0x0f 0x03)
+				 SUNXI_CMD_DCS(0, 10, 0xcf 0x00 0x01 0x40 0x01 0xca 0x01 0xca 0x01 0xca)
+				 SUNXI_CMD_DCS(0, 24, 0xd0 0x00 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x03 0x01 0x05 0x07 0x09 0x0b 0x1e 0x15 0x1f 0x1f 0x15 0x1f)
+				 SUNXI_CMD_DCS(0, 24, 0xd1 0x00 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x02 0x00 0x04 0x06 0x08 0x0a 0x1e 0x15 0x1f 0x1f 0x15 0x1f)
+				 SUNXI_CMD_DCS(0, 24, 0xd2 0x00 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x00 0x02 0x0a 0x08 0x06 0x04 0x1f 0x15 0x1f 0x1f 0x15 0x1e)
+				 SUNXI_CMD_DCS(0, 24, 0xd3 0x00 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x1f 0x01 0x03 0x0b 0x09 0x07 0x05 0x1f 0x15 0x1f 0x1f 0x15 0x1e)
+				 SUNXI_CMD_DCS(0, 38, 0xd4 0x30 0x00 0x00 0x04 0x00 0x06 0x00 0x00 0x00 0x00 0x00 0x03 0x03 0x00 0x11 0x00 0x01 0xc0 0x04 0x01 0x01 0x11 0x80 0x01 0xc0 0x05 0x01 0x01 0x00 0x00 0x00 0x04 0x00 0x06 0x18 0x02 0xe3)
+				 SUNXI_CMD_DCS(0, 9, 0xd5 0x68 0x73 0x00 0x08 0x08 0x00 0x03 0x00)
+				 SUNXI_CMD_DCS(0, 7, 0xb7 0x00 0xd8 0x00 0x00 0xd8 0x00)
+				 SUNXI_CMD_DCS(0, 39, 0xc8 0x7f 0x69 0x5a 0x4e 0x4a 0x3b 0x40 0x2a 0x44 0x43 0x44 0x63 0x51 0x59 0x4c 0x48 0x3a 0x28 0x0f 0x7f 0x69 0x5a 0x4e 0x4a 0x3b 0x40 0x2a 0x44 0x43 0x44 0x63 0x51 0x59 0x4c 0x48 0x3a 0x28 0x0f)
+				 SUNXI_CMD_DCS(0, 2, 0xde 0x02)
+				 SUNXI_CMD_DCS(0, 5, 0xbb 0x00 0x5b 0x5c 0x41)
+				 SUNXI_CMD_DCS(0, 4, 0xb5 0x00 0x5a 0x0a)
+				 SUNXI_CMD_DCS(0, 2, 0xc6 0x22)
+				 SUNXI_CMD_DCS(0, 2, 0xd7 0x12)
+				 SUNXI_CMD_DCS(0, 3, 0xe7 0x00 0x00)
+				 SUNXI_CMD_DCS(0, 2, 0xde 0x04)
+				 SUNXI_CMD_DCS(0, 2, 0xcc 0x02)
+				 SUNXI_CMD_DCS(0, 2, 0xe7 0x01)
+				 SUNXI_CMD_DCS(0, 2, 0xde 0x00)
+				 SUNXI_CMD_DCS(0, 2, 0x35 0x00)
+				 SUNXI_CMD_DCS(120, 1, 0x11)
+				 SUNXI_CMD_DCS(20, 1, 0x29)>;
+		exit-sequence = <SUNXI_CMD_DCS(0, 1, 0x28)		/* display off */
+				 SUNXI_CMD_DCS(120, 1, 0x10)>;	/* enter sleep */
+		power-off-sequence = <SUNXI_CMD_GPIO(SUNXI_PIN(ALLWINNER_PIO_PD, 9), 0)>;
+
+		display-timings {
+			compatible = "zephyr,panel-timing";
+			clock-frequency = <54000000>;
+			hsync-len = <10>;
+			hfront-porch = <40>;
+			hback-porch = <40>;
+			vsync-len = <8>;
+			vfront-porch = <12>;
+			vback-porch = <21>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
 	};
-};
-
-/* 2D graphics accelerator */
-&g2d {
-	status = "okay";
-};
-
-/*
- * USB 2.0 port: the OTG (device) controller and the EHCI/OHCI host controllers
- * share one PHY, an application starts the stack of the role it needs. PE02
- * drives VBUS for the host role.
- */
-&usbphy {
-	vbus-gpios = <&gpioe 2 0>;
-	status = "okay";
-};
-
-&usbhci {
-	status = "okay";
-};
-
-&usbotg {
-	status = "okay";
-};
-
-/*
- * TF card slot on SMHC0 (4 bit, card detect on PF06, low with a card in). SMHC2
- * (the WiFi SDIO port) stays off: its clock pin PE02 is the USB VBUS switch.
- */
-&smhc0 {
-	pinctrl-0 = <&smhc0_pins>;
-	pinctrl-names = "default";
-	bus-width = <4>;
-	cd-gpios = <&gpiof 6 GPIO_ACTIVE_LOW>;
-	status = "okay";
-
-	sdmmc {
-		compatible = "zephyr,sdmmc-disk";
-		disk-name = "SD";
-		status = "okay";
-	};
-};
-
-/* Video engine: hardware JPEG, PNG and H.264 decoder */
-&ve {
-	status = "okay";
-};
-
-/*
- * On-chip audio codec: headphone out, the external speaker amplifier is enabled
- * by PE10. Its DMA streams use channels 1 (DAC) and 2 (ADC) of the DMA controller.
- */
-&audio_codec {
-	status = "okay";
-};
-
-&codec_analog {
-	pa-gpios = <&gpioe 10 GPIO_ACTIVE_HIGH>;
-	status = "okay";
 };

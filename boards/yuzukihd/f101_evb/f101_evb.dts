@@ -59,8 +59,45 @@
 	};
 };
 
+/* the EVB has the 1024x600 RGB panel, not the MIPI DSI one of the carrier board */
+&rgb0 {
+	status = "okay";
+};
+
 &panel0 {
+	status = "okay";
 	backlight = <&backlight0>;
+};
+
+&dsi0 {
+	status = "disabled";
+};
+
+&dphy0 {
+	status = "disabled";
+};
+
+&panel_dsi {
+	status = "disabled";
+};
+
+&backlight_dsi {
+	status = "disabled";
+};
+
+/* PD6..PD8 carry LCD data, the EVB backlight is PWM_BL */
+&pwm {
+	status = "disabled";
+};
+
+&display {
+	width = <1024>;
+	height = <600>;
+};
+
+/* speaker amplifier enable of the EVB */
+&codec_analog {
+	pa-gpios = <&gpioe 10 GPIO_ACTIVE_HIGH>;
 };
 
 &uart3 {
