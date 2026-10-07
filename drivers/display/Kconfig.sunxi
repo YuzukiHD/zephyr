@@ -32,6 +32,15 @@ config DISPLAY_SUNXI_ARGB8888
 
 endchoice
 
+config DISPLAY_SUNXI_FB_DIV
+	int "Frame buffer size divisor"
+	default 1
+	range 1 4
+	help
+	  The frame buffer plane has 1/N of the panel size in each direction
+	  and is scaled up by the display engine, which saves memory: a
+	  1024x600 RGB565 buffer is 1.2 MB, with 2 it is 300 KB.
+
 config DISPLAY_SUNXI_FB_ALLOC
 	bool "Allocate the framebuffer at run time"
 	help

@@ -45,7 +45,10 @@ LOG_MODULE_REGISTER(display_sunxi, CONFIG_DISPLAY_LOG_LEVEL);
 #endif
 
 /* the display engine reads the framebuffer by DMA: whole cache lines, 64 byte aligned */
-#define SUNXI_FB_SIZE	ROUND_UP(SUNXI_MAX_WIDTH * SUNXI_MAX_HEIGHT * SUNXI_BPP, 64)
+/* the frame buffer has 1/DIV of the panel size in each direction, the display engine scales it up */
+#define SUNXI_FB_DIV		CONFIG_DISPLAY_SUNXI_FB_DIV
+#define SUNXI_FB_SIZE	ROUND_UP((SUNXI_MAX_WIDTH / SUNXI_FB_DIV) * (SUNXI_MAX_HEIGHT / SUNXI_FB_DIV) * \
+				 SUNXI_BPP, 64)
 
 #if defined(CONFIG_DISPLAY_SUNXI_FB_ALLOC)
 /* taken from the C library heap when the device is initialized */
@@ -56,8 +59,10 @@ static uint8_t sunxi_fb_static[SUNXI_FB_SIZE] __aligned(64);
 #endif
 
 struct sunxi_display_data {
-	uint16_t width;
+	uint16_t width;     /* panel */
 	uint16_t height;
+	uint16_t fb_width;  /* frame buffer, as seen through the display API */
+	uint16_t fb_height;
 	uint32_t stride;
 	uint8_t brightness;
 	bool blanked;
@@ -77,8 +82,8 @@ static int sunxi_display_write(const struct device *dev, const uint16_t x,
 	size_t src_pitch = (size_t)desc->pitch * SUNXI_BPP;
 	uint16_t row;
 
-	if (desc->width > desc->pitch || x + desc->width > data->width ||
-	    y + desc->height > data->height) {
+	if (desc->width > desc->pitch || x + desc->width > data->fb_width ||
+	    y + desc->height > data->fb_height) {
 		return -EINVAL;
 	}
 
@@ -131,8 +136,8 @@ static void sunxi_display_get_capabilities(const struct device *dev,
 	const struct sunxi_display_data *data = dev->data;
 
 	memset(caps, 0, sizeof(*caps));
-	caps->x_resolution = data->width;
-	caps->y_resolution = data->height;
+	caps->x_resolution = data->fb_width;
+	caps->y_resolution = data->fb_height;
 	caps->supported_pixel_formats = SUNXI_PIXEL_FORMAT;
 	caps->current_pixel_format = SUNXI_PIXEL_FORMAT;
 	caps->current_orientation = DISPLAY_ORIENTATION_NORMAL;
@@ -156,8 +161,8 @@ static int sunxi_display_show_framebuffer(struct sunxi_display_data *data)
 	p->framebuffer.plane_stride[0] = data->stride;
 	p->framebuffer.plane_count = 1;
 	p->framebuffer.format = SUNXI_DISPLAY_FORMAT;
-	p->framebuffer.width = data->width;
-	p->framebuffer.height = data->height;
+	p->framebuffer.width = data->fb_width;
+	p->framebuffer.height = data->fb_height;
 	p->framebuffer.stride = data->stride;
 	p->destination.width = data->width;
 	p->destination.height = data->height;
@@ -199,8 +204,8 @@ static void sunxi_display_fb_plane(struct sunxi_display_data *data, struct displ
 	p->framebuffer.plane_stride[0] = data->stride;
 	p->framebuffer.plane_count = 1;
 	p->framebuffer.format = SUNXI_DISPLAY_FORMAT;
-	p->framebuffer.width = data->width;
-	p->framebuffer.height = data->height;
+	p->framebuffer.width = data->fb_width;
+	p->framebuffer.height = data->fb_height;
 	p->framebuffer.stride = data->stride;
 	p->destination.width = data->width;
 	p->destination.height = data->height;
@@ -369,7 +374,9 @@ static int sunxi_display_init(const struct device *dev)
 
 	data->width = mode.width;
 	data->height = mode.height;
-	data->stride = mode.width * SUNXI_BPP;
+	data->fb_width = mode.width / SUNXI_FB_DIV;
+	data->fb_height = mode.height / SUNXI_FB_DIV;
+	data->stride = data->fb_width * SUNXI_BPP;
 #if defined(CONFIG_DISPLAY_SUNXI_FB_ALLOC)
 	sunxi_fb = aligned_alloc(64, SUNXI_FB_SIZE);
 	if (sunxi_fb == NULL) {
