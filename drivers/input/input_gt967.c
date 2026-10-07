@@ -104,7 +104,7 @@ static void gt967_work_handler(struct k_work *work)
 	uint8_t points, now = 0;
 	int ret;
 
-	ret = gt967_read(dev, REG_STATUS, buf, 1U + CONFIG_INPUT_GT967_MAX_TOUCH_POINTS * POINT_SIZE);
+	ret = gt967_read(dev, REG_STATUS, buf, 1);
 	if (ret < 0) {
 		LOG_ERR("read failed: %d", ret);
 		return;
@@ -113,6 +113,15 @@ static void gt967_work_handler(struct k_work *work)
 		return;
 	}
 	points = MIN(buf[0] & STATUS_POINTS_MASK, CONFIG_INPUT_GT967_MAX_TOUCH_POINTS);
+
+	/* only the points that are down, a slow bus time is spent on every byte */
+	if (points > 0) {
+		ret = gt967_read(dev, REG_STATUS + 1, &buf[1], points * POINT_SIZE);
+		if (ret < 0) {
+			LOG_ERR("read failed: %d", ret);
+			return;
+		}
+	}
 
 	/* the controller keeps the frame until the status is cleared */
 	ret = gt967_write(dev, REG_STATUS, clear, sizeof(clear));
