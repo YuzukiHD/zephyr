@@ -21,6 +21,7 @@
 		zephyr,sram = &sram0;
 		zephyr,display = &display;
 		zephyr,touch = &touch;
+		zephyr,bt-hci = &bt_hci;
 	};
 
 	aliases {
@@ -150,6 +151,20 @@
 		};
 	};
 
+	/*
+	 * Bluetooth HCI on UART2: TX PE6, RX PE7, RTS PE8, CTS PE9 (the pins of I2C0 and of the RGB
+	 * panel, both off here)
+	 */
+	uart2_pins: uart2_pins {
+		uart2_group {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 6, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 7, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 8, 3)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 9, 3)>;
+			bias-pull-up;
+		};
+	};
+
 	/* RGB panel: 18 bit parallel RGB on PD0..PD9, PD12..PD21, PE6, PE7 */
 	rgb_pins: rgb_pins {
 		rgb_lcd {
@@ -228,9 +243,24 @@
 	pinctrl-names = "default";
 };
 
-/* Buses and converters */
-&i2c0 {
+/* Bluetooth: the HCI of the AIC8800D40 on UART2 with hardware flow control */
+&uart2 {
 	status = "okay";
+	current-speed = <115200>;
+	hw-flow-control;
+	pinctrl-0 = <&uart2_pins>;
+	pinctrl-names = "default";
+
+	bt_hci: bt-hci {
+		compatible = "zephyr,bt-hci-uart";
+		status = "okay";
+	};
+};
+
+/* Buses and converters */
+/* PE8/PE9 are RTS/CTS of the Bluetooth UART */
+&i2c0 {
+	status = "disabled";
 	pinctrl-0 = <&twi0_pins>;
 	pinctrl-names = "default";
 };
@@ -296,7 +326,8 @@
 
 /*
  * WiFi: AIC8800D40 on SMHC2 (4 bit SDIO, not removable). REG_ON on PE10 powers the chip, it
- * enumerates on the bus after the line is raised.
+ * enumerates on the bus after the line is raised. The Bluetooth part has its reset on PD8 and its
+ * HCI on UART2.
  */
 &smhc2 {
 	pinctrl-0 = <&smhc2_pins>;
@@ -308,6 +339,7 @@
 	aic8800 {
 		compatible = "aicsemi,aic8800";
 		reg-on-gpios = <&gpioe 10 GPIO_ACTIVE_HIGH>;
+		bt-reset-gpios = <&gpiod 8 GPIO_ACTIVE_LOW>;
 	};
 };
 
