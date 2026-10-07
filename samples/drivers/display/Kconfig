@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "Display sample"
+
+config SAMPLE_DISPLAY_COLOR_BARS
+	bool "Draw colour bars instead of the corner rectangles"
+	help
+	  Eight vertical colour bars (red, green, blue, white, black, yellow,
+	  cyan, magenta) over three quarters of the screen, a grey ramp below and
+	  a one pixel white frame, for checking the picture of a new panel.
+	  Needs a 32 bit ARGB frame buffer.
+
+source "Kconfig.zephyr"

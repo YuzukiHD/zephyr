@@ -177,6 +177,62 @@ static inline void fill_buffer_mono10(enum corner corner, uint8_t grey,
 	fill_buffer_mono(corner, grey, 0xFFu, 0x00u, buf, buf_size);
 }
 
+#ifdef CONFIG_SAMPLE_DISPLAY_COLOR_BARS
+static int draw_color_bars(const struct device *dev, const struct display_capabilities *cap)
+{
+	static const uint32_t bars[8] = {
+		0xFF0000, 0x00FF00, 0x0000FF, 0xFFFFFF, 0x000000, 0xFFFF00, 0x00FFFF, 0xFF00FF,
+	};
+	const uint16_t w = cap->x_resolution, h = cap->y_resolution, strip = 16;
+	const bool argb = cap->current_pixel_format == PIXEL_FORMAT_ARGB_8888;
+	const size_t bpp = argb ? 4 : 2;
+	struct display_buffer_descriptor desc = {
+		.buf_size = w * strip * bpp, .width = w, .pitch = w, .height = strip,
+		.frame_incomplete = true,
+	};
+	uint8_t *buf = k_malloc(desc.buf_size);
+
+	if (buf == NULL || (!argb && cap->current_pixel_format != PIXEL_FORMAT_RGB_565)) {
+		LOG_ERR("colour bars: unsupported format or no memory for %u bytes", desc.buf_size);
+		k_free(buf);
+		return -ENOMEM;
+	}
+	for (uint16_t y = 0; y < h; y += strip) {
+		desc.height = MIN(strip, h - y);
+		desc.frame_incomplete = (y + strip) < h;
+		for (uint16_t r = 0; r < desc.height; r++) {
+			uint8_t *row = &buf[r * w * bpp];
+
+			for (uint16_t x = 0; x < w; x++) {
+				uint32_t rgb;
+
+				if (y + r < h * 3 / 4) {
+					rgb = bars[x * 8 / w];
+				} else {
+					uint32_t g = x * 255 / (w - 1);
+
+					rgb = g << 16 | g << 8 | g;
+				}
+				if (x == 0 || x == w - 1 || y + r == 0 || y + r == h - 1) {
+					rgb = 0xFFFFFF;
+				}
+				if (argb) {
+					((uint32_t *)row)[x] = 0xFF000000 | rgb;
+				} else {
+					((uint16_t *)row)[x] = (rgb >> 8 & 0xF800) |
+							       (rgb >> 5 & 0x07E0) |
+							       (rgb >> 3 & 0x001F);
+				}
+			}
+		}
+		display_write(dev, 0, y, &desc, buf);
+	}
+	k_free(buf);
+	display_blanking_off(dev);
+	return 0;
+}
+#endif
+
 int main(void)
 {
 	size_t x;
@@ -208,6 +264,13 @@ int main(void)
 
 	LOG_INF("Display sample for %s", display_dev->name);
 	display_get_capabilities(display_dev, &capabilities);
+
+#ifdef CONFIG_SAMPLE_DISPLAY_COLOR_BARS
+	if (draw_color_bars(display_dev, &capabilities) == 0) {
+		LOG_INF("Colour bars %ux%u", capabilities.x_resolution, capabilities.y_resolution);
+		k_sleep(K_FOREVER);
+	}
+#endif
 
 	if (capabilities.screen_info & SCREEN_INFO_MONO_VTILED) {
 		rect_w = 16;
