@@ -29,7 +29,7 @@ LOG_MODULE_REGISTER(sample, LOG_LEVEL_INF);
 #define BPP          ((DISPLAY_BITS_PER_PIXEL(PIXEL_FORMAT)) / BITS_PER_BYTE)
 
 #define BUFFER_SIZE  (CROSS_DIM * CROSS_DIM * BPP)
-#define REFRESH_RATE 100
+#define REFRESH_RATE CONFIG_SAMPLE_REFRESH_PERIOD_MS
 
 static const struct device *const display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
 static const struct device *const touch_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_touch));

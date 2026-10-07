@@ -5,4 +5,8 @@ config SCREEN_WIDTH_TO_CROSS_DIM
 	int "Screen width to cross horizontal/vertical dimension ratio"
 	default 25
 
+config SAMPLE_REFRESH_PERIOD_MS
+	int "Minimum time between two redraws in milliseconds"
+	default 100
+
 source "Kconfig.zephyr"
