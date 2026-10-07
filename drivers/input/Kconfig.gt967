@@ -1,0 +1,38 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig INPUT_GT967
+	bool "GT967 capacitive touch panel driver"
+	default y
+	depends on DT_HAS_GOODIX_GT967_ENABLED
+	select I2C
+	select INPUT_TOUCH
+	help
+	  Enable driver for the Goodix GT967 capacitive touch controller
+	  (up to 5 touch points).
+
+if INPUT_GT967
+
+config INPUT_GT967_INTERRUPT
+	bool "Interrupt"
+	default y
+	help
+	  Read the touch data when the INT line signals it. Without it the
+	  controller is polled.
+
+config INPUT_GT967_PERIOD_MS
+	int "Sample period"
+	depends on !INPUT_GT967_INTERRUPT
+	default 10
+	help
+	  Sample period in milliseconds when in polling mode.
+
+config INPUT_GT967_MAX_TOUCH_POINTS
+	int "Touch Number"
+	default 1
+	range 1 5
+	help
+	  Maximum number of touch points to be handled. Multitouch is ignored
+	  if equal to 1.
+
+endif # INPUT_GT967

@@ -1,0 +1,24 @@
+# Copyright (c) 2026 Yuzuki Tsuru
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Goodix GT967 5 point capacitive touch controller. The I2C address is chosen
+  by the level of the INT line while the reset is released: low selects 0x5d,
+  high selects 0x14, the driver drives INT to the level that matches "reg".
+
+compatible: "goodix,gt967"
+
+include: [i2c-device.yaml, touchscreen-common.yaml]
+
+properties:
+  irq-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      Interrupt line, a rising edge (GPIO_ACTIVE_HIGH) tells that touch data
+      is ready.
+
+  reset-gpios:
+    type: phandle-array
+    required: true
+    description: Reset line, active low (GPIO_ACTIVE_LOW).
