@@ -27,12 +27,22 @@
 
 	aliases {
 		i2c-0 = &i2c0;
+		led0 = &led0;
+	};
+
+	/* PD5 (shared with the LCD pins, which the DSI panel does not use there) */
+	leds {
+		compatible = "gpio-leds";
+
+		led0: led_0 {
+			gpios = <&gpiod 5 GPIO_ACTIVE_HIGH>;
+		};
 	};
 };
 
 /*
  * Pin groups of the whole board. PD0..PD21 are LCD pins: the RGB panel of the EVB takes all of
- * them (so the DBI and SPI1 on PD0..PD5 stay off), the DSI panel of the carrier board takes
+ * them (so the DBI and SPI1 on PD0..PD5 stay off; PD5 is an LED, PD6/PD7 are UART4), the DSI panel of the carrier board takes
  * PD12..PD21 and PD9 as reset.
  */
 &pio {
@@ -166,6 +176,15 @@
 		};
 	};
 
+	/* UART4 on PD6 (TX) / PD7 (RX) */
+	uart4_pins: uart4_pins {
+		uart4_group {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 6, 5)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PD, 7, 5)>;
+			bias-pull-up;
+		};
+	};
+
 	/* RGB panel: 18 bit parallel RGB on PD0..PD9, PD12..PD21, PE6, PE7 */
 	rgb_pins: rgb_pins {
 		rgb_lcd {
@@ -256,6 +275,14 @@
 		compatible = "zephyr,bt-hci-uart";
 		status = "okay";
 	};
+};
+
+/* General purpose UART on PD6/PD7 */
+&uart4 {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart4_pins>;
+	pinctrl-names = "default";
 };
 
 /* Buses and converters */
