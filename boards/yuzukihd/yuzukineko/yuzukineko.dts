@@ -134,6 +134,22 @@
 		};
 	};
 
+	/* WiFi (AIC8800D40) on SMHC2: CLK PE2, CMD PE3, D0..D3 PE1/PE0/PE5/PE4 (shared with I2S0) */
+	smhc2_pins: smhc2_pins {
+		smhc2_clk {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 2, 9)>;
+			bias-disable;
+		};
+		smhc2_cmd_data {
+			pinmux = <ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 3, 9)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 1, 9)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 0, 9)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 5, 9)
+				  ALLWINNER_PINMUX(ALLWINNER_PIO_PE, 4, 9)>;
+			bias-pull-up;
+		};
+	};
+
 	/* RGB panel: 18 bit parallel RGB on PD0..PD9, PD12..PD21, PE6, PE7 */
 	rgb_pins: rgb_pins {
 		rgb_lcd {
@@ -278,18 +294,29 @@
 	};
 };
 
-/* USB */
 /*
- * USB 2.0 port: the OTG (device) controller and the EHCI/OHCI host controllers
- * share one PHY, an application starts the stack of the role it needs. PE02
- * drives VBUS for the host role.
+ * WiFi: AIC8800D40 on SMHC2 (4 bit SDIO, not removable). REG_ON on PE10 powers the chip, it
+ * enumerates on the bus after the line is raised.
  */
-&usbphy {
-	vbus-gpios = <&gpioe 2 0>;
+&smhc2 {
+	pinctrl-0 = <&smhc2_pins>;
+	pinctrl-names = "default";
+	bus-width = <4>;
+	non-removable;
 	status = "okay";
+
+	aic8800 {
+		compatible = "aicsemi,aic8800";
+		reg-on-gpios = <&gpioe 10 GPIO_ACTIVE_HIGH>;
+	};
 };
 
-&usbhci {
+/* USB */
+/*
+ * USB 2.0 port in device mode: the OTG controller and the PHY. PE2 is the SDIO clock of the WiFi
+ * chip, so there is no VBUS switch and the EHCI/OHCI host controllers stay off.
+ */
+&usbphy {
 	status = "okay";
 };
 
