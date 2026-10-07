@@ -36,7 +36,10 @@ static const struct device *const touch_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_tou
 static struct display_buffer_descriptor buf_desc = {
 	.buf_size = BUFFER_SIZE, .pitch = CROSS_DIM, .width = CROSS_DIM, .height = CROSS_DIM};
 
-static uint8_t buffer_cross[BUFFER_SIZE];
+/* a controller with several touch points reports each one in a slot (ABS_MT_SLOT) */
+#define SLOTS 5
+
+static uint8_t buffer_cross[SLOTS][BUFFER_SIZE];
 static const uint8_t buffer_cross_empty[BUFFER_SIZE];
 static struct k_sem sync;
 
@@ -44,18 +47,26 @@ static struct {
 	size_t x;
 	size_t y;
 	bool pressed;
-} touch_point, touch_point_drawn;
+	/* where the cross of this slot is on the screen */
+	size_t drawn_x;
+	size_t drawn_y;
+	bool drawn;
+} slot[SLOTS];
+static int cur_slot;
 
 static void touch_event_callback(struct input_event *evt, void *user_data)
 {
+	if (evt->code == INPUT_ABS_MT_SLOT) {
+		cur_slot = CLAMP(evt->value, 0, SLOTS - 1);
+	}
 	if (evt->code == INPUT_ABS_X) {
-		touch_point.x = evt->value;
+		slot[cur_slot].x = evt->value;
 	}
 	if (evt->code == INPUT_ABS_Y) {
-		touch_point.y = evt->value;
+		slot[cur_slot].y = evt->value;
 	}
 	if (evt->code == INPUT_BTN_TOUCH) {
-		touch_point.pressed = evt->value;
+		slot[cur_slot].pressed = evt->value;
 	}
 	if (evt->sync) {
 		k_sem_give(&sync);
@@ -77,19 +88,28 @@ static void clear_screen(void)
 
 static void fill_cross_buffer(void)
 {
+	/* ARGB8888 colours of the slots, other formats draw white crosses */
+	static const uint32_t colours[SLOTS] = {
+		0xFFFF3030, 0xFF30FF30, 0xFF3080FF, 0xFFFFFF30, 0xFFFF30FF,
+	};
 	int i;
+	int n;
 	int x;
 	int y;
 	int index;
 
-	for (i = 0; i < BPP; i++) {
+	for (n = 0; n < SLOTS; n++) {
 		for (x = 0; x < CROSS_DIM; x++) {
 			index = BPP * (CROSS_DIM / 2 * CROSS_DIM + x);
-			buffer_cross[index + i] = -1;
+			for (i = 0; i < BPP; i++) {
+				buffer_cross[n][index + i] = (BPP == 4) ? (colours[n] >> (8 * i)) : -1;
+			}
 		}
 		for (y = 0; y < CROSS_DIM; y++) {
 			index = BPP * (y * CROSS_DIM + CROSS_DIM / 2);
-			buffer_cross[index + i] = -1;
+			for (i = 0; i < BPP; i++) {
+				buffer_cross[n][index + i] = (BPP == 4) ? (colours[n] >> (8 * i)) : -1;
+			}
 		}
 	}
 }
@@ -130,28 +150,47 @@ int main(void)
 	display_blanking_off(display_dev);
 
 	clear_screen();
-	touch_point_drawn.x = CROSS_DIM / 2;
-	touch_point_drawn.y = CROSS_DIM / 2;
-	touch_point.x = -1;
-	touch_point.y = -1;
+	for (int n = 0; n < SLOTS; n++) {
+		slot[n].x = -1;
+		slot[n].y = -1;
+	}
 
 	k_sem_init(&sync, 0, 1);
 
+	int last_down = -1;
+
 	while (1) {
+		int down = 0;
+
 		k_msleep(REFRESH_RATE);
 		k_sem_take(&sync, K_FOREVER);
-		LOG_INF("TOUCH %s X, Y: (%d, %d)", touch_point.pressed ? "PRESS" : "RELEASE",
-			touch_point.x, touch_point.y);
 
-		display_write(display_dev, get_draw_position(touch_point_drawn.x, WIDTH),
-			      get_draw_position(touch_point_drawn.y, HEIGHT), &buf_desc,
-			      buffer_cross_empty);
-
-		display_write(display_dev, get_draw_position(touch_point.x, WIDTH),
-			      get_draw_position(touch_point.y, HEIGHT), &buf_desc, buffer_cross);
-
-		touch_point_drawn.x = touch_point.x;
-		touch_point_drawn.y = touch_point.y;
+		/* erase every cross first, so that crosses on top of each other leave nothing */
+		for (int n = 0; n < SLOTS; n++) {
+			if (slot[n].drawn) {
+				display_write(display_dev, get_draw_position(slot[n].drawn_x, WIDTH),
+					      get_draw_position(slot[n].drawn_y, HEIGHT), &buf_desc,
+					      buffer_cross_empty);
+				slot[n].drawn = false;
+			}
+		}
+		for (int n = 0; n < SLOTS; n++) {
+			if (!slot[n].pressed) {
+				continue;
+			}
+			display_write(display_dev, get_draw_position(slot[n].x, WIDTH),
+				      get_draw_position(slot[n].y, HEIGHT), &buf_desc,
+				      buffer_cross[n]);
+			slot[n].drawn_x = slot[n].x;
+			slot[n].drawn_y = slot[n].y;
+			slot[n].drawn = true;
+			down++;
+		}
+		/* only when a finger comes or goes, not for every move */
+		if (down != last_down) {
+			LOG_INF("%d touch(es)", down);
+			last_down = down;
+		}
 	}
 	return 0;
 }
