@@ -27,6 +27,7 @@ LOG_MODULE_REGISTER(gt967, CONFIG_INPUT_LOG_LEVEL);
 #define CONFIG_SIZE		228U
 #define CONFIG_X_MAX		1U	/* 16 bit little endian, offsets from REG_CONFIG */
 #define CONFIG_Y_MAX		3U
+#define CONFIG_TOUCH_NUMBER	5U	/* low 4 bits */
 #define CONFIG_MODULE_SWITCH1	6U
 #define MODULE_SWITCH1_INT_MASK	0x03U	/* 0: rising edge */
 
@@ -202,8 +203,8 @@ static uint8_t gt967_checksum(const uint8_t *config)
 }
 
 /*
- * Bring the resolution and the interrupt edge in line with devicetree; a controller that already
- * has them keeps its (factory) configuration untouched.
+ * Bring the resolution, the number of touch points and the interrupt edge in line with the
+ * devicetree and Kconfig; a controller that already has them keeps its configuration untouched.
  */
 static int gt967_configure(const struct device *dev)
 {
@@ -221,11 +222,16 @@ static int gt967_configure(const struct device *dev)
 		return -ENODEV;
 	}
 
+	LOG_INF("configuration 0x%02x: %u x %u, up to %u point(s), module switch 0x%02x", config[0],
+		sys_get_le16(&config[CONFIG_X_MAX]), sys_get_le16(&config[CONFIG_Y_MAX]),
+		config[CONFIG_TOUCH_NUMBER] & 0x0fU, config[CONFIG_MODULE_SWITCH1]);
 	memcpy(want, config, sizeof(want));
 	if (cfg->common.screen_width != 0U && cfg->common.screen_height != 0U) {
 		sys_put_le16(cfg->common.screen_width, &want[CONFIG_X_MAX]);
 		sys_put_le16(cfg->common.screen_height, &want[CONFIG_Y_MAX]);
 	}
+	want[CONFIG_TOUCH_NUMBER] = (want[CONFIG_TOUCH_NUMBER] & 0xf0U) |
+				    CONFIG_INPUT_GT967_MAX_TOUCH_POINTS;
 	want[CONFIG_MODULE_SWITCH1] &= ~MODULE_SWITCH1_INT_MASK;
 
 	if (memcmp(config, want, CONFIG_SIZE - 2U) == 0) {
@@ -237,8 +243,8 @@ static int gt967_configure(const struct device *dev)
 	if (ret < 0) {
 		return ret;
 	}
-	LOG_INF("configuration updated: %ux%u", sys_get_le16(&want[CONFIG_X_MAX]),
-		sys_get_le16(&want[CONFIG_Y_MAX]));
+	LOG_INF("configuration updated: %ux%u, %u point(s)", sys_get_le16(&want[CONFIG_X_MAX]),
+		sys_get_le16(&want[CONFIG_Y_MAX]), want[CONFIG_TOUCH_NUMBER] & 0x0fU);
 	k_msleep(BOOT_MS);
 	return 0;
 }
