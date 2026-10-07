@@ -56,10 +56,10 @@
 				     SUNXI_CMD_DELAY(100)
 				     SUNXI_CMD_GPIO(SUNXI_PIN(ALLWINNER_PIO_PD, 9), 1)
 				     SUNXI_CMD_DELAY(100)>;
-		init-sequence = <SUNXI_CMD_DCS(120, 0x11)	/* exit sleep */
-				 SUNXI_CMD_DCS(20, 0x29)>;	/* display on */
-		exit-sequence = <SUNXI_CMD_DCS(0, 0x28)		/* display off */
-				 SUNXI_CMD_DCS(120, 0x10)>;	/* enter sleep */
+		init-sequence = <SUNXI_CMD_DCS(120, 1, 0x11)	/* exit sleep */
+				 SUNXI_CMD_DCS(20, 1, 0x29)>;	/* display on */
+		exit-sequence = <SUNXI_CMD_DCS(0, 1, 0x28)		/* display off */
+				 SUNXI_CMD_DCS(120, 1, 0x10)>;	/* enter sleep */
 		power-off-sequence = <SUNXI_CMD_GPIO(SUNXI_PIN(ALLWINNER_PIO_PD, 9), 0)
 				      SUNXI_CMD_DELAY(5)
 				      SUNXI_CMD_GPIO(SUNXI_PIN(ALLWINNER_PIO_PD, 22), 0)>;
