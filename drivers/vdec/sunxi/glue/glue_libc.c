@@ -46,20 +46,20 @@ int fclose(FILE *f)
 	return -1;
 }
 
-int open(const char *path, int flags, ...)
+__attribute__((weak)) int open(const char *path, int flags, ...)
 {
 	(void)path;
 	(void)flags;
 	return -1;
 }
 
-int close(int fd)
+__attribute__((weak)) int close(int fd)
 {
 	(void)fd;
 	return -1;
 }
 
-int ioctl(int fd, unsigned long req, ...)
+__attribute__((weak)) int ioctl(int fd, unsigned long req, ...)
 {
 	(void)fd;
 	(void)req;

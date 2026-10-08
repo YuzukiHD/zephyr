@@ -770,10 +770,12 @@ out:
 	} else {
 		LOG_DBG("CMD%u failed: %d (rint %08x idst %08x)", cmd->opcode, ret, data->rint,
 			data->idst);
-		/* a command that merely got no answer leaves the controller usable */
-		if (sd != NULL || ret != -ETIMEDOUT || (smhc_rd(dev, SMHC_CMDR) & CMDR_START)) {
-			smhc_recover(dev);
-		}
+		/*
+		 * Reset after every failure: a command that got no answer (the SDIO probe of a
+		 * memory card) leaves the response logic in a state where the next command
+		 * fails as well.
+		 */
+		smhc_recover(dev);
 	}
 
 	return ret;
