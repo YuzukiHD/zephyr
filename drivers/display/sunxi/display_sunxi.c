@@ -155,7 +155,12 @@ static int sunxi_display_show_framebuffer(struct sunxi_display_data *data)
 	p->enable = true;
 	p->plane_id = SUNXI_FB_PLANE;
 	p->alpha = 0xff;
-	p->blend_mode = DISPLAY_BLEND_NONE;
+	/*
+	 * With an alpha channel the plane is blended by it also without a picture below: ignoring
+	 * the alpha would show the colour of transparent pixels (rounded corners, edges of text)
+	 */
+	p->blend_mode = IS_ENABLED(CONFIG_DISPLAY_SUNXI_ARGB8888) ? DISPLAY_BLEND_COVERAGE
+								  : DISPLAY_BLEND_NONE;
 	p->framebuffer.address = (uintptr_t)sunxi_fb;
 	p->framebuffer.plane_address[0] = (uintptr_t)sunxi_fb;
 	p->framebuffer.plane_stride[0] = data->stride;
@@ -332,7 +337,9 @@ int display_sunxi_hide_yuv(const struct device *dev)
 	}
 	display_pipeline_state_init(&state);
 	state.plane_count = 2;
-	sunxi_display_fb_plane(data, &state.planes[0], true, DISPLAY_BLEND_NONE);
+	sunxi_display_fb_plane(data, &state.planes[0], true,
+			       IS_ENABLED(CONFIG_DISPLAY_SUNXI_ARGB8888) ? DISPLAY_BLEND_COVERAGE
+									 : DISPLAY_BLEND_NONE);
 	memset(&state.planes[1], 0, sizeof(state.planes[1]));
 	state.planes[1].plane_id = data->video_plane;
 	state.planes[1].enable = false;
