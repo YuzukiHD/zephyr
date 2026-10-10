@@ -41,6 +41,19 @@ config DISPLAY_SUNXI_FB_DIV
 	  and is scaled up by the display engine, which saves memory: a
 	  1024x600 RGB565 buffer is 1.2 MB, with 2 it is 300 KB.
 
+config DISPLAY_SUNXI_FB_WINDOW_WIDTH
+	int "Width of the frame buffer window in pixels (0: the whole screen)"
+	default 0
+	help
+	  Only this part of the frame buffer, in the top left corner of the
+	  screen, is shown. The display engine then reads less memory for it
+	  every refresh, which leaves more bandwidth to the video engine; use it
+	  when the plane only carries an overlay in a corner. Needs a height too.
+
+config DISPLAY_SUNXI_FB_WINDOW_HEIGHT
+	int "Height of the frame buffer window in pixels (0: the whole screen)"
+	default 0
+
 config DISPLAY_SUNXI_FB_ALLOC
 	bool "Allocate the framebuffer at run time"
 	help

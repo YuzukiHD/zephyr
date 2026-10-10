@@ -143,6 +143,27 @@ static void sunxi_display_get_capabilities(const struct device *dev,
 	caps->current_orientation = DISPLAY_ORIENTATION_NORMAL;
 }
 
+/* Part of the frame buffer that is shown: the whole screen, or the window in its top left corner */
+static void sunxi_display_fb_window(struct sunxi_display_data *data, struct display_plane_state *p)
+{
+	uint32_t w = CONFIG_DISPLAY_SUNXI_FB_WINDOW_WIDTH, h = CONFIG_DISPLAY_SUNXI_FB_WINDOW_HEIGHT;
+
+	if (w == 0 || h == 0 || w > data->width || h > data->height) {
+		p->destination.width = data->width;
+		p->destination.height = data->height;
+		return;
+	}
+	p->source.x = 0;
+	p->source.y = 0;
+	/* the buffer has 1/DIV of the screen size in each direction */
+	p->source.width = w / CONFIG_DISPLAY_SUNXI_FB_DIV;
+	p->source.height = h / CONFIG_DISPLAY_SUNXI_FB_DIV;
+	p->destination.x = 0;
+	p->destination.y = 0;
+	p->destination.width = w;
+	p->destination.height = h;
+}
+
 static int sunxi_display_show_framebuffer(struct sunxi_display_data *data)
 {
 	struct display_pipeline_state state;
@@ -169,8 +190,7 @@ static int sunxi_display_show_framebuffer(struct sunxi_display_data *data)
 	p->framebuffer.width = data->fb_width;
 	p->framebuffer.height = data->fb_height;
 	p->framebuffer.stride = data->stride;
-	p->destination.width = data->width;
-	p->destination.height = data->height;
+	sunxi_display_fb_window(data, p);
 
 	return display_submit(&state);
 }
@@ -212,8 +232,7 @@ static void sunxi_display_fb_plane(struct sunxi_display_data *data, struct displ
 	p->framebuffer.width = data->fb_width;
 	p->framebuffer.height = data->fb_height;
 	p->framebuffer.stride = data->stride;
-	p->destination.width = data->width;
-	p->destination.height = data->height;
+	sunxi_display_fb_window(data, p);
 }
 
 int display_sunxi_show_yuv(const struct device *dev, const struct display_sunxi_yuv *img)

@@ -170,6 +170,12 @@ static void audio_main(void *a, void *b, void *c)
 		goto out;
 	}
 	audio_codec_start_output(codec_ctl);
+	{
+		/* louder than the codec default */
+		audio_property_value_t vol = {.vol = 140};
+
+		audio_codec_set_property(codec_ctl, AUDIO_PROPERTY_OUTPUT_VOLUME, AUDIO_CHANNEL_ALL, vol);
+	}
 
 	mp4_iter_init(t, &it);
 	while (mp4_next(t, &it, &s) == 0) {
