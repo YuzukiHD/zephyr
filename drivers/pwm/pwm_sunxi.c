@@ -151,7 +151,7 @@ static int sunxi_pwm_set_cycles(const struct device *dev, uint32_t channel,
 	}
 
 	/* Match pwm-ng's M divider (1..256) and 8-bit prescaler. */
-	for (div_m = 0U; div_m <= 8U && period_count == 0U; div_m++) {
+	for (div_m = 0U; div_m <= 8U; div_m++) {
 		uint32_t m = BIT(div_m);
 
 		for (prescale = 0U; prescale <= UINT8_MAX; prescale++) {
@@ -161,6 +161,9 @@ static int sunxi_pwm_set_cycles(const struct device *dev, uint32_t channel,
 				period_count = (uint32_t)count;
 				break;
 			}
+		}
+		if (period_count != 0U) {
+			break;
 		}
 	}
 	if (period_count == 0U) {
