@@ -1,6 +1,4 @@
 /*
- * Copyright (c) 2026 Yuzuki Tsuru
- *
  * SPDX-License-Identifier: Apache-2.0
  */
 

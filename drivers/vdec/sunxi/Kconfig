@@ -1,4 +1,3 @@
-# Copyright (c) 2026 Yuzuki Tsuru
 # SPDX-License-Identifier: Apache-2.0
 
 config VDEC_SUNXI
@@ -8,30 +7,64 @@ config VDEC_SUNXI
 	depends on FPU
 	select CACHE_MANAGEMENT
 	help
-	  Hardware JPEG, PNG and H.264 decoding on the sunxi video engine. The
-	  engine specific code is a prebuilt archive, lib/libcedarc.a (see
-	  VDEC_SUNXI_LIBCEDARC_PATH). Everything the archive needs from the
-	  system is provided by the glue layer in drivers/vdec/sunxi/glue.
+	  Baseline JPEG and H.264 decoding on the sunxi video engine and a
+	  software PNG decoder, all in C. ve_hw.c drives the engine (clock,
+	  reset, interrupt, picture conversion), ve_pool.c and ve_stream.c hold
+	  the pictures and the compressed data, ve_session.c ties them to a
+	  codec (ve_jpeg.c, ve_h264.c, ve_png.c).
 
 if VDEC_SUNXI
-
-config VDEC_SUNXI_LIBCEDARC_PATH
-	string "Path of the prebuilt decoder archive"
-	help
-	  Empty uses lib/libcedarc.a next to this file. The build fails when
-	  the archive is missing.
 
 config VDEC_SUNXI_JPEG
 	bool "JPEG decoder"
 	default y
+	help
+	  Markers are read in software (ve_jpeg_parse.c) and the engine
+	  registers are programmed by ve_jpeg_hw.c.
 
 config VDEC_SUNXI_PNG
 	bool "PNG decoder"
 	default y
+	select CRC
+	help
+	  Software PNG decoder (all colour types and bit depths, tRNS, Adam7);
+	  the picture is delivered as RGBA8888.
 
 config VDEC_SUNXI_H264
 	bool "H.264 decoder"
 	default y
+	help
+	  Syntax, reference pictures and the engine programming are in
+	  drivers/vdec/sunxi/ve_h264*.c. Frame pictures only (no field or
+	  macroblock adaptive coding).
+
+config VDEC_SUNXI_RVV
+	bool "Use the vector extension in the loops the CPU runs"
+	default y
+	depends on SUN252I_F101_RVV
+	help
+	  Vector versions of the byte loops on the CPU side of the decoders:
+	  the filters, checksum and pixel conversion of the PNG decoder, the
+	  chroma swap of NV21 pictures and the search for H.264 start codes.
+	  The decoding itself is done by the engine and does not change.
+
+config VDEC_SUNXI_H264_DIRECT_NV12
+	bool "H.264: the engine writes the linear picture itself (experimental)"
+	depends on VDEC_SUNXI_H264
+	help
+	  Besides the tiled picture it keeps as reference, the decoder writes a
+	  copy as linear NV12 through its second output, so no separate
+	  conversion pass is needed.
+
+config VDEC_SUNXI_H264_DIRECT_CHECK
+	bool "Compare the direct picture with the converted one"
+	depends on VDEC_SUNXI_H264_DIRECT_NV12
+	help
+	  For the first pictures of a stream also run the conversion and print
+	  how many bytes of the two linear pictures differ.
+
+config VDEC_SUNXI_MEM_TRACE
+	bool "Print every picture/work buffer allocation"
 
 config VDEC_SUNXI_CLOCK_MHZ
 	int "Video engine clock in MHz"
@@ -50,10 +83,11 @@ config VDEC_SUNXI_STREAM_BUFFER_KB
 
 config VDEC_SUNXI_MAX_MEMORY_KB
 	int "Memory budget of one decoder in KiB"
-	default 8192
+	default 12288
 	help
 	  Upper bound the decoders may use for pictures and stream buffer; it
-	  decides how many frame buffers a stream gets.
+	  decides how many frame buffers a stream gets (never fewer than the
+	  H.264 references plus three).
 
 config VDEC_SUNXI_MEM_ALIGN
 	int "Alignment of decoder buffers"
@@ -62,7 +96,7 @@ config VDEC_SUNXI_MEM_ALIGN
 	  Alignment of every buffer handed to the video engine.
 
 config VDEC_SUNXI_LOG_LEVEL
-	int "Log level of the video engine glue"
+	int "Log level of the video engine driver"
 	default 3
 
 endif # VDEC_SUNXI

@@ -2,33 +2,23 @@
 
 zephyr_library()
 zephyr_library_sources(
-  ve_core.c
-  ve_fifo.c
-  ve_fbm.c
-  ve_sbm.c
-  ve_decoder.c
+  ve_hw.c
+  ve_mem.c
+  ve_pool.c
+  ve_stream.c
+  ve_session.c
   vdec_sunxi.c
-  glue/glue_core.c
-  glue/glue_irq.c
-  glue/glue_clk.c
-  glue/glue_rst.c
-  glue/glue_sem.c
-  glue/glue_pthread.c
-  glue/glue_libc.c
-  glue/glue_mem.c
 )
 
-if(CONFIG_VDEC_SUNXI_LIBCEDARC_PATH STREQUAL "")
-  set(_cedarc_lib ${CMAKE_CURRENT_LIST_DIR}/lib/libcedarc)
-else()
-  set(_cedarc_lib ${CONFIG_VDEC_SUNXI_LIBCEDARC_PATH})
-endif()
-if(NOT EXISTS ${_cedarc_lib})
-  message(FATAL_ERROR "decoder archive ${_cedarc_lib} not found")
-endif()
-# The archive lists some members twice, so it is linked as a plain archive
-# (members pulled on demand) rather than whole.
-zephyr_link_libraries(${_cedarc_lib})
-
-# the archive prints through printf(): route it into the Zephyr log (glue_libc.c)
-zephyr_link_libraries(-Wl,--wrap=printf)
+zephyr_library_sources_ifdef(CONFIG_VDEC_SUNXI_JPEG
+  ve_jpeg.c
+  ve_jpeg_parse.c
+  ve_jpeg_hw.c
+)
+zephyr_library_sources_ifdef(CONFIG_VDEC_SUNXI_H264
+  ve_h264.c
+  ve_h264_hw.c
+  ve_h264_parse.c
+  ve_h264_dpb.c
+)
+zephyr_library_sources_ifdef(CONFIG_VDEC_SUNXI_PNG ve_png.c)
