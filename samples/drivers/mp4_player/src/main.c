@@ -12,6 +12,7 @@
  */
 
 #include <errno.h>
+#include <zephyr/kernel.h>
 #include <pvmp4audiodecoder_api.h>
 #include <ff.h>
 #include <stdlib.h>
