@@ -119,7 +119,7 @@ __subsystem struct vdec_driver_api {
  * @param codec VDEC_CODEC_JPEG or VDEC_CODEC_PNG
  * @param data Compressed picture, not kept after the call returns
  * @param len Size of @p data
- * @param format Wanted frame layout (JPEG: NV12 or NV21, PNG: RGBA8888)
+ * @param format Wanted frame layout (JPEG: NV12, PNG: RGBA8888)
  * @param frame Filled with the decoded frame
  *
  * @retval 0 on success
