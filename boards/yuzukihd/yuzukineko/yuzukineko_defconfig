@@ -19,6 +19,8 @@ CONFIG_DMA=y
 CONFIG_MIPI_DBI=y
 CONFIG_SHELL=y
 CONFIG_DEBUG=y
+# CONFIG_DEBUG would select -Og for every program on the board: build for speed instead
+CONFIG_SPEED_OPTIMIZATIONS=y
 CONFIG_LOG=y
 # The kernel logs every mutex operation at debug level. Forcing all modules
 # to debug (LOG_OVERRIDE_LEVEL) with the shell log backend makes the log
