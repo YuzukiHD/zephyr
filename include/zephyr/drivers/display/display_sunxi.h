@@ -109,6 +109,12 @@ struct display_sunxi_rgb {
 	bool xrgb8888;
 	/** As in display_sunxi_yuv */
 	bool nonblock;
+	/**
+	 * Sharp enlargement for pictures with hard edges (a UI, pixel art): the picture is made a
+	 * whole multiple of its size when that fits the screen, and the pixels are repeated, not
+	 * interpolated. Bigger pictures are fitted as usual.
+	 */
+	bool pixel_perfect;
 };
 
 /**

@@ -128,6 +128,7 @@ struct dpy_plane_state {
 	uint8_t blend_mode;		/* enum display_blend_mode */
 	uint8_t color_encoding;
 	uint8_t color_range;
+	bool nearest;			/* scaler: repeat pixels, no interpolation */
 
 	/* computed by dpy_plane_helper_check_state() */
 	bool visible;

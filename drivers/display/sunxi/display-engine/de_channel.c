@@ -324,6 +324,7 @@ int de_channel_plan(struct de_pipeline *pipe, struct de_crtc_state *s,
 			cp->alpha = ps->alpha;
 			cp->color_encoding = ps->color_encoding;
 			cp->color_range = ps->color_range;
+			cp->nearest = ps->nearest;
 			cp->zmin = ps->normalized_zpos;
 			first_format = ps->fb.format;
 		} else {

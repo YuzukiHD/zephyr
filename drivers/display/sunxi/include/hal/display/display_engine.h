@@ -154,6 +154,8 @@ struct display_plane_state {
 	uint8_t blend_mode;		/* enum display_blend_mode */
 	uint8_t color_encoding;		/* enum display_color_encoding, YUV only */
 	uint8_t color_range;		/* enum display_color_range, YUV only */
+	/* scale by repeating source pixels (no interpolation), for pixel art and UI pictures */
+	bool nearest;
 	struct display_framebuffer framebuffer;
 	/* part of the framebuffer to show, zero size means the whole buffer */
 	struct display_rect source;

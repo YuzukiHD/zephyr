@@ -217,6 +217,7 @@ struct de_chn_plan {
 	bool yuv;
 	uint8_t color_encoding;
 	uint8_t color_range;
+	bool nearest;		/* scaler without interpolation */
 	uint32_t zmin, zmax;	/* normalized z range of the layers */
 
 	/* overlay output and blender input */

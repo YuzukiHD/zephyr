@@ -89,6 +89,14 @@ static int sunxi_display_write(const struct device *dev, const uint16_t x,
 		return -EINVAL;
 	}
 
+	/* full width rows of a buffer without a gap are one block in both memories */
+	if (x == 0 && row_bytes == data->stride && src_pitch == row_bytes) {
+		dst = sunxi_fb + (size_t)y * data->stride;
+		memcpy(dst, src, row_bytes * desc->height);
+		sys_cache_data_flush_range(dst, row_bytes * desc->height);
+		return 0;
+	}
+
 	for (row = 0; row < desc->height; row++) {
 		dst = sunxi_fb + (size_t)(y + row) * data->stride +
 		      (size_t)x * SUNXI_BPP;
@@ -363,6 +371,18 @@ int display_sunxi_show_rgb(const struct device *dev, const struct display_sunxi_
 		dh = data->height;
 		dw = (uint64_t)src.width * data->height / src.height;
 	}
+	/* a whole multiple of the picture, when the picture fits the screen at all */
+	bool nearest = false;
+
+	if (img->pixel_perfect) {
+		const uint32_t k = MIN(data->width / src.width, data->height / src.height);
+
+		if (k >= 1U) {
+			dw = src.width * k;
+			dh = src.height * k;
+			nearest = true;
+		}
+	}
 	dw &= ~1U;
 	dh &= ~1U;
 
@@ -381,6 +401,7 @@ int display_sunxi_show_rgb(const struct device *dev, const struct display_sunxi_
 	v->framebuffer.plane_address[0] = (uintptr_t)img->data;
 	v->framebuffer.plane_stride[0] = img->stride;
 	v->framebuffer.plane_count = 1;
+	v->nearest = nearest;
 	v->framebuffer.format = img->xrgb8888 ? DISPLAY_FORMAT_XRGB8888 : DISPLAY_FORMAT_RGB565;
 	v->framebuffer.width = img->width;
 	v->framebuffer.height = img->height;

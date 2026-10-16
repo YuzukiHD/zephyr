@@ -140,22 +140,19 @@ static void de_vsu_apply(struct de_stage *st, const struct de_crtc_state *s)
 	de_rb_write(st->blk[VSU_BLK_C], VSU_C_VPHASE0 - VSU_C_SIZE,
 		    VSU_REG_FIX(cp->cs.vphase));
 
-	de_vsu_load_coef(st->blk[VSU_BLK_YH0], de_vsu_coef_y_h0,
-			 de_scaler_bucket(cp->ys.hstep, DE_VSU_FRAC));
-	de_vsu_load_coef(st->blk[VSU_BLK_YH1], de_vsu_coef_y_h1,
-			 de_scaler_bucket(cp->ys.hstep, DE_VSU_FRAC));
-	de_vsu_load_coef(st->blk[VSU_BLK_YV], de_vsu_coef_y_v,
-			 de_scaler_bucket(cp->ys.vstep, DE_VSU_FRAC));
+	/* set 0 of the tables takes the nearest source pixel in every phase */
+	const unsigned int yh = cp->nearest ? 0 : de_scaler_bucket(cp->ys.hstep, DE_VSU_FRAC);
+	const unsigned int yv = cp->nearest ? 0 : de_scaler_bucket(cp->ys.vstep, DE_VSU_FRAC);
+	const unsigned int ch = cp->nearest ? 0 : de_scaler_bucket(cp->cs.hstep, DE_VSU_FRAC);
+	const unsigned int cv = cp->nearest ? 0 : de_scaler_bucket(cp->cs.vstep, DE_VSU_FRAC);
+
+	de_vsu_load_coef(st->blk[VSU_BLK_YH0], de_vsu_coef_y_h0, yh);
+	de_vsu_load_coef(st->blk[VSU_BLK_YH1], de_vsu_coef_y_h1, yh);
+	de_vsu_load_coef(st->blk[VSU_BLK_YV], de_vsu_coef_y_v, yv);
 	/* RGB goes through the chroma path too: use the sharp luma filter */
-	de_vsu_load_coef(st->blk[VSU_BLK_CH0],
-			 rgb ? de_vsu_coef_y_h0 : de_vsu_coef_c_h0,
-			 de_scaler_bucket(cp->cs.hstep, DE_VSU_FRAC));
-	de_vsu_load_coef(st->blk[VSU_BLK_CH1],
-			 rgb ? de_vsu_coef_y_h1 : de_vsu_coef_c_h1,
-			 de_scaler_bucket(cp->cs.hstep, DE_VSU_FRAC));
-	de_vsu_load_coef(st->blk[VSU_BLK_CV],
-			 rgb ? de_vsu_coef_y_v : de_vsu_coef_c_v,
-			 de_scaler_bucket(cp->cs.vstep, DE_VSU_FRAC));
+	de_vsu_load_coef(st->blk[VSU_BLK_CH0], rgb ? de_vsu_coef_y_h0 : de_vsu_coef_c_h0, ch);
+	de_vsu_load_coef(st->blk[VSU_BLK_CH1], rgb ? de_vsu_coef_y_h1 : de_vsu_coef_c_h1, ch);
+	de_vsu_load_coef(st->blk[VSU_BLK_CV], rgb ? de_vsu_coef_y_v : de_vsu_coef_c_v, cv);
 
 	de_rb_write(st->blk[VSU_BLK_CTRL], VSU_CTRL,
 		    VSU_CTRL_EN | VSU_CTRL_COEF_RDY);

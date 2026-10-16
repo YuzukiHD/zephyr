@@ -229,6 +229,7 @@ int display_get_state(struct display_pipeline_state *state)
 		out->blend_mode = ps->blend_mode;
 		out->color_encoding = ps->color_encoding;
 		out->color_range = ps->color_range;
+		out->nearest = ps->nearest;
 		dpy_fb_to_api(&ps->fb, &out->framebuffer);
 		out->source.x = ps->src.x >> 16;
 		out->source.y = ps->src.y >> 16;
@@ -342,6 +343,7 @@ static int dpy_api_fill_plane(const struct display_plane_state *in,
 	ps->blend_mode = in->blend_mode;
 	ps->color_encoding = in->color_encoding;
 	ps->color_range = in->color_range;
+	ps->nearest = in->nearest;
 	return 0;
 }
 
