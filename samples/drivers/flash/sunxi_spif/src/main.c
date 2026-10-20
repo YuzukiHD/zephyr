@@ -103,7 +103,17 @@ static void show_map(void)
 static void test_tune(void)
 {
 	struct sunxi_spif_tune_result r;
-	int ret = sunxi_spif_tune(spif, &r);
+	int ret;
+
+	/* the tuning reference is data of the flash itself; a blank partition has none */
+	ret = flash_read(spif, TUNE_OFF, buf_a, 4096);
+	if (ret == 0 && is_blank(buf_a, 4096)) {
+		prbs(buf_a, 4096, 0x7157);
+		ret = flash_write(spif, TUNE_OFF, buf_a, 4096);
+		CHECK(ret == 0, "tune reference write: %d", ret);
+		printk("tune: partition was blank, reference written\n");
+	}
+	ret = sunxi_spif_tune(spif, &r);
 
 	printk("tune: %d, %u Hz, mode %u delay %u window %u+%u\n", ret, r.frequency, r.mode, r.delay,
 	       r.window_start, r.window_len);
@@ -284,6 +294,82 @@ static void test_xip_sections(void)
 	printk("xip sections: 2M iterations: from the window %u us, from RAM %u us\n", us_xip,
 	       us_ram);
 }
+
+/*
+ * Flash commands while code runs from the window: a timer interrupt and a
+ * low priority thread both execute XIP code and check its result, while the
+ * main thread reads, erases and programs the scratch partition. The mapping
+ * is taken down per command with interrupts masked, so every run must still
+ * return the right value and no timer expiry may be lost for good.
+ */
+#define CONC_WORK	1000U
+#define CONC_ROUNDS	24
+
+static uint32_t conc_ref;
+static volatile uint32_t conc_isr_runs, conc_isr_bad, conc_thr_runs, conc_thr_bad;
+static volatile bool conc_stop;
+
+static void conc_timer_fn(struct k_timer *t)
+{
+	ARG_UNUSED(t);
+	conc_isr_runs++;
+	if (xip_work(CONC_WORK) != conc_ref) {
+		conc_isr_bad++;
+	}
+}
+
+K_TIMER_DEFINE(conc_timer, conc_timer_fn, NULL);
+
+static void conc_thread_fn(void *a, void *b, void *c)
+{
+	ARG_UNUSED(a);
+	ARG_UNUSED(b);
+	ARG_UNUSED(c);
+	while (!conc_stop) {
+		conc_thr_runs++;
+		if (xip_work(CONC_WORK) != conc_ref) {
+			conc_thr_bad++;
+		}
+	}
+}
+
+K_THREAD_DEFINE(conc_thread, 1024, conc_thread_fn, NULL, NULL, NULL, 10, 0, -1);
+
+static void test_xip_concurrent(void)
+{
+	uint32_t t0 = k_cycle_get_32();
+	int ret;
+
+	conc_ref = ram_work(CONC_WORK);
+	CHECK(xip_work(CONC_WORK) == conc_ref, "xip_work reference");
+	prbs(buf_a, 4096, 77);
+	k_thread_start(conc_thread);
+	k_timer_start(&conc_timer, K_MSEC(1), K_MSEC(1));
+
+	for (int i = 0; i < CONC_ROUNDS; i++) {
+		uint32_t off = SCRATCH_OFF + (uint32_t)(i % 4) * 4096U;
+
+		ret = flash_erase(spif, off, 4096);
+		CHECK(ret == 0, "erase %d: %d", i, ret);
+		ret = flash_read(spif, off, buf_b, 4096);
+		CHECK(ret == 0 && is_blank(buf_b, 4096), "blank %d: %d", i, ret);
+		buf_a[0] = i;
+		ret = flash_write(spif, off, buf_a, 4096);
+		CHECK(ret == 0, "write %d: %d", i, ret);
+		ret = flash_read(spif, off, buf_b, 4096);
+		CHECK(ret == 0 && memcmp(buf_a, buf_b, 4096) == 0, "verify %d: %d", i, ret);
+		k_msleep(2);
+	}
+
+	k_timer_stop(&conc_timer);
+	conc_stop = true;
+	k_msleep(5);
+	printk("xip concurrent: %u ms, timer runs %u (bad %u), thread runs %u (bad %u)\n",
+	       us_since(t0) / 1000U, conc_isr_runs, conc_isr_bad, conc_thr_runs, conc_thr_bad);
+	CHECK(conc_isr_bad == 0 && conc_thr_bad == 0, "XIP code returned a wrong value");
+	CHECK(conc_isr_runs > 0 && conc_thr_runs > 0, "no concurrent run happened");
+	flash_erase(spif, SCRATCH_OFF, 4 * 4096);
+}
 #endif
 
 static void test_xip(void)
@@ -362,6 +448,171 @@ static void test_xip(void)
 	CHECK(ret == 0 && memcmp(buf_b, code_v2, sizeof(code_v2)) == 0, "flash after disable");
 }
 
+/*
+ * Boundaries of the mapped window: first and last bytes, odd offsets and
+ * lengths, page and sector crossings, an erase or program that must show up
+ * in the window at once, and the window read by an interrupt and the
+ * partition read by another thread while the main thread keeps the
+ * controller busy with other sectors.
+ */
+#define EDGE_SECTORS	(XIP_SIZE / 4096U)
+
+static uint8_t edge_buf[4096] __aligned(64);
+static uint8_t edge_ref[256] __aligned(64);
+static uint8_t edge_thr_buf[4096] __aligned(64);
+static volatile uint32_t edge_isr_runs, edge_isr_bad, edge_thr_runs, edge_thr_bad;
+static volatile bool edge_stop;
+
+static void edge_timer_fn(struct k_timer *t)
+{
+	const uint8_t *win = sunxi_spif_xip_window(spif);
+
+	ARG_UNUSED(t);
+	edge_isr_runs++;
+	if (memcmp(win + 2 * 4096U, edge_ref, sizeof(edge_ref)) != 0) {
+		edge_isr_bad++;
+	}
+}
+
+K_TIMER_DEFINE(edge_timer, edge_timer_fn, NULL);
+
+static void edge_thread_fn(void *a, void *b, void *c)
+{
+	uint8_t pat[256] __aligned(64);
+
+	ARG_UNUSED(a);
+	ARG_UNUSED(b);
+	ARG_UNUSED(c);
+	prbs(pat, sizeof(pat), 3 + 1);
+	while (!edge_stop) {
+		edge_thr_runs++;
+		if (flash_read(spif, XIP_OFF + 3 * 4096U, edge_thr_buf, 4096) != 0 ||
+		    memcmp(edge_thr_buf, pat, sizeof(pat)) != 0) {
+			edge_thr_bad++;
+		}
+		k_yield();
+	}
+}
+
+K_THREAD_DEFINE(edge_thread, 2048, edge_thread_fn, NULL, NULL, NULL, 10, 0, -1);
+
+static void test_xip_edges(void)
+{
+	const uint8_t *win = sunxi_spif_xip_window(spif);
+	static const uint16_t lens[] = { 1, 2, 3, 4, 5, 7, 63, 64, 65, 255, 256, 257, 4095, 4096,
+					 4097 };
+	int ret;
+
+	ret = flash_read(spif, XIP_OFF + 16, edge_buf, 8);
+	if (ret != 0 || memcmp(edge_buf, "SPIFXIPT", 8) != 0) {
+		CHECK(false, "xip_test partition is not ours, edges skipped");
+		return;
+	}
+	sunxi_spif_xip_disable(spif);
+	ret = flash_erase(spif, XIP_OFF, XIP_SIZE);
+	CHECK(ret == 0, "edges erase: %d", ret);
+	/* sector s holds a pattern of its own */
+	for (uint32_t s = 0; s < EDGE_SECTORS; s++) {
+		prbs(edge_buf, 4096, s + 1);
+		ret = flash_write(spif, XIP_OFF + s * 4096U, edge_buf, 4096);
+		CHECK(ret == 0, "edges write %u: %d", s, ret);
+	}
+	ret = sunxi_spif_xip_enable(spif, XIP_OFF, XIP_SIZE);
+	CHECK(ret == 0, "edges enable: %d", ret);
+
+	/* first and last sector, first and last byte of the window */
+	for (uint32_t s = 0; s < EDGE_SECTORS; s += EDGE_SECTORS - 1U) {
+		prbs(edge_buf, 4096, s + 1);
+		CHECK(memcmp(win + s * 4096U, edge_buf, 4096) == 0, "window sector %u differs", s);
+	}
+	CHECK(win[XIP_SIZE - 1] == edge_buf[4095], "last byte of the window");
+	ret = flash_read(spif, XIP_OFF + XIP_SIZE - 1U, edge_buf, 1);
+	CHECK(ret == 0 && edge_buf[0] == win[XIP_SIZE - 1], "flash_read of the last byte: %d", ret);
+	/* reads that run past the partition end of the window are refused or exact */
+	ret = flash_read(spif, XIP_OFF + XIP_SIZE - 4U, edge_buf, 4);
+	CHECK(ret == 0 && memcmp(edge_buf, win + XIP_SIZE - 4U, 4) == 0, "last word: %d", ret);
+
+	/* odd offsets and lengths, a command between two window reads each time */
+	for (size_t li = 0; li < ARRAY_SIZE(lens); li++) {
+		for (uint32_t o = 0; o < 8; o++) {
+			uint32_t off = 4096U * 5U - 3U + o * 61U;
+			uint8_t *dst = edge_buf + (o & 3U);
+
+			ret = flash_read(spif, XIP_OFF + off, dst, lens[li]);
+			if (ret != 0 || memcmp(dst, win + off, lens[li]) != 0) {
+				CHECK(false, "read len %u off %x: %d", lens[li], off, ret);
+				break;
+			}
+		}
+	}
+
+	/* programs that cross a 256 byte page, seen in the window afterwards */
+	ret = flash_erase(spif, XIP_OFF + 8U * 4096U, 4096);
+	CHECK(ret == 0, "edges erase 8: %d", ret);
+	CHECK(is_blank(win + 8U * 4096U, 4096), "window not blank after the erase");
+	prbs(edge_ref, sizeof(edge_ref), 99);
+	for (uint32_t k = 0; k < 6; k++) {
+		static const uint16_t starts[] = { 0, 1, 254, 255, 256, 509 };
+		static const uint16_t ns[] = { 1, 2, 3, 2, 255, 7 };
+		uint32_t off = 8U * 4096U + 512U * k + starts[k] % 256U;
+
+		ret = flash_write(spif, XIP_OFF + off, edge_ref, ns[k] + (k == 2 ? 3 : 0));
+		CHECK(ret == 0, "write %u: %d", k, ret);
+		CHECK(memcmp(win + off, edge_ref, ns[k] + (k == 2 ? 3 : 0)) == 0,
+		      "window does not show write %u", k);
+	}
+	CHECK(win[8U * 4096U + 511U] == 0xff, "byte before a write changed");
+
+	/* many alternations of a command and a window read */
+	for (uint32_t i = 0; i < 300; i++) {
+		uint8_t b;
+
+		ret = flash_read(spif, XIP_OFF + 4096U * 6U + i, &b, 1);
+		if (ret != 0 || b != win[4096U * 6U + i]) {
+			CHECK(false, "alternation %u: %d", i, ret);
+			break;
+		}
+	}
+
+	/* interrupt reads the window, a thread reads the partition, main erases and programs */
+	prbs(edge_ref, sizeof(edge_ref), 3);
+	CHECK(memcmp(win + 2 * 4096U, edge_ref, sizeof(edge_ref)) == 0, "isr reference");
+	k_thread_start(edge_thread);
+	k_timer_start(&edge_timer, K_MSEC(1), K_MSEC(1));
+	for (int i = 0; i < 40; i++) {
+		uint32_t off = XIP_OFF + (10U + (uint32_t)(i % 8)) * 4096U;
+
+		ret = flash_erase(spif, off, 4096);
+		CHECK(ret == 0, "mixed erase %d: %d", i, ret);
+		prbs(edge_buf, 4096, 500 + i);
+		ret = flash_write(spif, off, edge_buf, 4096);
+		CHECK(ret == 0, "mixed write %d: %d", i, ret);
+		CHECK(memcmp(win + (off - XIP_OFF), edge_buf, 4096) == 0, "mixed window %d", i);
+		k_msleep(1);
+	}
+	k_timer_stop(&edge_timer);
+	edge_stop = true;
+	k_msleep(20);
+	printk("xip edges: timer reads %u (bad %u), thread reads %u (bad %u)\n", edge_isr_runs,
+	       edge_isr_bad, edge_thr_runs, edge_thr_bad);
+	CHECK(edge_isr_bad == 0 && edge_thr_bad == 0, "concurrent reads saw wrong data");
+	CHECK(edge_isr_runs > 0 && edge_thr_runs > 0, "no concurrent read happened");
+
+	/* disabled again: the flash shows the same data */
+	ret = sunxi_spif_xip_disable(spif);
+	CHECK(ret == 0, "edges disable: %d", ret);
+	prbs(edge_buf, 4096, 2 + 1);
+	ret = flash_read(spif, XIP_OFF + 2 * 4096U, edge_thr_buf, 4096);
+	CHECK(ret == 0 && memcmp(edge_buf, edge_thr_buf, 4096) == 0, "sector 2 after disable");
+	/* leave a marker so a later run recognises the partition */
+	ret = flash_erase(spif, XIP_OFF, 4096);
+	memset(edge_buf, 0xff, 4096);
+	memcpy(edge_buf, code_v2, sizeof(code_v2));
+	memcpy(edge_buf + 16, "SPIFXIPT", 8);
+	ret |= flash_write(spif, XIP_OFF, edge_buf, 4096);
+	CHECK(ret == 0, "edges marker: %d", ret);
+}
+
 int main(void)
 {
 	struct sunxi_spif_info info;
@@ -387,8 +638,10 @@ int main(void)
 #ifdef CONFIG_FLASH_SUNXI_SPIF_XIP_SECTIONS
 	show_info("xip at init");
 	test_xip_sections();
+	test_xip_concurrent();
 #endif
 	test_xip();
+	test_xip_edges();
 	test_speed();
 	printk("%s (%d failures)\n", failures == 0 ? "PASS" : "FAIL", failures);
 
