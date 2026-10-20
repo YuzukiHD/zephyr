@@ -613,6 +613,228 @@ static void test_xip_edges(void)
 	CHECK(ret == 0, "edges marker: %d", ret);
 }
 
+/*
+ * Cost of the mapping: the same read, program and erase work with and
+ * without the window, and the longest time a 1 ms timer interrupt was
+ * late (the mapping is taken down with interrupts masked per command).
+ */
+static volatile uint32_t perf_last, perf_max_gap, perf_ticks;
+
+static void perf_timer_fn(struct k_timer *t)
+{
+	uint32_t now = k_cycle_get_32();
+
+	ARG_UNUSED(t);
+	uint32_t gap = k_cyc_to_us_floor32(now - perf_last);
+
+	if (gap > perf_max_gap) {
+		perf_max_gap = gap;
+	}
+	perf_ticks++;
+	perf_last = now;
+}
+
+K_TIMER_DEFINE(perf_timer, perf_timer_fn, NULL);
+
+static void test_xip_perf(void)
+{
+	for (int mapped = 0; mapped < 2; mapped++) {
+		uint32_t t0, us_rd, us_wr, us_er, us_rd4, gap_rd, gap_wr, gap_er;
+		int ret;
+
+		if (mapped) {
+			ret = sunxi_spif_xip_enable(spif, XIP_OFF, XIP_SIZE);
+			CHECK(ret == 0, "perf enable: %d", ret);
+		}
+		prbs(buf_a, CHUNK, 5);
+		k_timer_start(&perf_timer, K_MSEC(1), K_MSEC(1));
+
+		perf_max_gap = 0;
+		perf_last = k_cycle_get_32();
+		t0 = k_cycle_get_32();
+		ret = flash_erase(spif, SCRATCH_OFF, CHUNK);
+		us_er = us_since(t0);
+		gap_er = perf_max_gap;
+		CHECK(ret == 0, "perf erase: %d", ret);
+
+		perf_max_gap = 0;
+		perf_last = k_cycle_get_32();
+		t0 = k_cycle_get_32();
+		ret = flash_write(spif, SCRATCH_OFF, buf_a, CHUNK);
+		us_wr = us_since(t0);
+		gap_wr = perf_max_gap;
+		CHECK(ret == 0, "perf write: %d", ret);
+
+		perf_max_gap = 0;
+		perf_last = k_cycle_get_32();
+		t0 = k_cycle_get_32();
+		ret = flash_read(spif, SCRATCH_OFF, buf_b, CHUNK);
+		us_rd = us_since(t0);
+		gap_rd = perf_max_gap;
+		CHECK(ret == 0 && memcmp(buf_a, buf_b, CHUNK) == 0, "perf read: %d", ret);
+
+		/* small reads: the fixed cost of one command */
+		t0 = k_cycle_get_32();
+		for (int i = 0; i < 200; i++) {
+			ret = flash_read(spif, SCRATCH_OFF + i * 16, buf_b, 16);
+		}
+		us_rd4 = us_since(t0) / 200U;
+		k_timer_stop(&perf_timer);
+
+		printk("perf %s: erase 64K %u us (irq off up to %u us), program 64K %u us (%u KiB/s, "
+		       "up to %u us), read 64K %u us (%u KiB/s, up to %u us), 16 byte read %u us\n",
+		       mapped ? "mapped  " : "unmapped", us_er, gap_er, us_wr,
+		       (uint32_t)(64ULL * 1000000 / us_wr), gap_wr, us_rd,
+		       (uint32_t)(64ULL * 1000000 / us_rd), gap_rd, us_rd4);
+		if (mapped) {
+			sunxi_spif_xip_disable(spif);
+		}
+	}
+	flash_erase(spif, SCRATCH_OFF, CHUNK);
+}
+
+/*
+ * What running from the window costs when the caches do not hide it:
+ * word reads in order and at random from the window against RAM, and a
+ * straight line function bigger than the instruction cache.
+ */
+static volatile uint32_t xs_sink;
+
+static uint32_t walk_words(const volatile uint32_t *p, uint32_t n, uint32_t stride_mask)
+{
+	uint32_t sum = 0, x = 12345;
+
+	for (uint32_t i = 0; i < n; i++) {
+		if (stride_mask) {
+			x = x * 1664525U + 1013904223U;
+			sum += p[(x >> 8) & stride_mask];
+		} else {
+			sum += p[i];
+		}
+	}
+
+	return sum;
+}
+
+static void test_xip_access(void)
+{
+	const uint32_t *win = sunxi_spif_xip_window(spif);
+	const uint32_t words = 64U * 1024U / 4U;
+	uint32_t t0, us_seq_w, us_rnd_w, us_seq_r, us_rnd_r;
+	int ret;
+
+	ret = sunxi_spif_xip_enable(spif, XIP_OFF, XIP_SIZE);
+	CHECK(ret == 0, "access enable: %d", ret);
+	/* a copy of the same data in RAM */
+	memcpy(buf_big, win, 128 * 1024);
+	sys_cache_data_flush_and_invd_range(buf_big, 128 * 1024);
+
+	t0 = k_cycle_get_32();
+	xs_sink = walk_words(win, 2U * words, 0);
+	us_seq_w = us_since(t0);
+	t0 = k_cycle_get_32();
+	xs_sink = walk_words((const uint32_t *)buf_big, 2U * words, 0);
+	us_seq_r = us_since(t0);
+	t0 = k_cycle_get_32();
+	xs_sink = walk_words(win, 2U * words, 2U * words - 1U);
+	us_rnd_w = us_since(t0);
+	t0 = k_cycle_get_32();
+	xs_sink = walk_words((const uint32_t *)buf_big, 2U * words, 2U * words - 1U);
+	us_rnd_r = us_since(t0);
+
+	printk("xip access, %u KiB: word reads in order window %u us (%u KiB/s) RAM %u us; "
+	       "random window %u us (%u ns/word) RAM %u us (%u ns/word)\n",
+	       (uint32_t)(2U * words * 4U / 1024U), us_seq_w,
+	       (uint32_t)((uint64_t)2U * words * 4U * 1000000U / 1024U / us_seq_w), us_seq_r,
+	       us_rnd_w, (uint32_t)((uint64_t)us_rnd_w * 1000U / (2U * words)), us_rnd_r,
+	       (uint32_t)((uint64_t)us_rnd_r * 1000U / (2U * words)));
+	/* a region that fits the data cache, read again and again: a cached window gets fast */
+	for (int pass = 0; pass < 3; pass++) {
+		t0 = k_cycle_get_32();
+		xs_sink = walk_words(win, 4096, 4095U);
+		us_rnd_w = us_since(t0);
+		t0 = k_cycle_get_32();
+		xs_sink = walk_words((const uint32_t *)buf_big, 4096, 4095U);
+		us_rnd_r = us_since(t0);
+		printk("xip access, 16 KiB random, pass %d: window %u ns/word, RAM %u ns/word\n", pass,
+		       us_rnd_w * 1000U / 4096U, us_rnd_r * 1000U / 4096U);
+	}
+	/* one word per stride: cost of touching a new line */
+	for (uint32_t stride = 1; stride <= 64; stride *= 4) {
+		uint32_t n = 2048;
+
+		t0 = k_cycle_get_32();
+		for (uint32_t i = 0; i < n; i++) {
+			xs_sink += ((const volatile uint32_t *)win)[(i * stride) % (64U * 1024U / 4U)];
+		}
+		us_seq_w = us_since(t0);
+		printk("xip access, stride %u words: %u ns/read\n", stride, us_seq_w * 1000U / n);
+	}
+	sunxi_spif_xip_disable(spif);
+}
+
+/* read, program and erase by size, with and without the window */
+static void test_xip_sweep(void)
+{
+	static const uint32_t rd_sizes[] = { 4, 16, 64, 256, 4096, 65536 };
+	static const uint32_t wr_sizes[] = { 1, 16, 256, 4096, 65536 };
+
+	for (int mapped = 0; mapped < 2; mapped++) {
+		uint32_t t0, us;
+		int ret;
+
+		if (mapped) {
+			ret = sunxi_spif_xip_enable(spif, XIP_OFF, XIP_SIZE);
+			CHECK(ret == 0, "sweep enable: %d", ret);
+		}
+		prbs(buf_a, CHUNK, 9);
+		for (size_t i = 0; i < ARRAY_SIZE(rd_sizes); i++) {
+			uint32_t n = rd_sizes[i], reps = MAX(8U, 262144U / n);
+
+			t0 = k_cycle_get_32();
+			for (uint32_t r = 0; r < reps; r++) {
+				ret = flash_read(spif, SCRATCH_OFF + (r * n) % (128U * 1024U), buf_b, n);
+			}
+			us = us_since(t0);
+			printk("sweep %s read %u B: %u ns/op, %u KiB/s\n", mapped ? "mapped  " : "unmapped",
+			       n, (uint32_t)((uint64_t)us * 1000U / reps),
+			       (uint32_t)((uint64_t)n * reps * 1000000U / 1024U / us));
+		}
+		for (size_t i = 0; i < ARRAY_SIZE(wr_sizes); i++) {
+			uint32_t n = wr_sizes[i], reps = n >= 4096U ? 4U : 16U, tot = 0;
+
+			for (uint32_t r = 0; r < reps; r++) {
+				uint32_t off = SCRATCH_OFF + r * 65536U;
+
+				ret = flash_erase(spif, off, MAX(n, 4096U));
+				t0 = k_cycle_get_32();
+				ret |= flash_write(spif, off, buf_a, n);
+				tot += us_since(t0);
+				CHECK(ret == 0, "sweep write %u: %d", n, ret);
+			}
+			us = tot / reps;
+			printk("sweep %s program %u B: %u us/op, %u KiB/s\n", mapped ? "mapped  " : "unmapped",
+			       n, us, (uint32_t)((uint64_t)n * 1000000U / 1024U / us));
+		}
+		for (int k = 0; k < 2; k++) {
+			uint32_t n = k ? 65536U : 4096U, reps = 4, tot = 0;
+
+			for (uint32_t r = 0; r < reps; r++) {
+				t0 = k_cycle_get_32();
+				ret = flash_erase(spif, SCRATCH_OFF + r * 65536U, n);
+				tot += us_since(t0);
+				CHECK(ret == 0, "sweep erase %u: %d", n, ret);
+			}
+			printk("sweep %s erase %u B: %u us/op\n", mapped ? "mapped  " : "unmapped", n,
+			       tot / reps);
+		}
+		if (mapped) {
+			sunxi_spif_xip_disable(spif);
+		}
+	}
+	flash_erase(spif, SCRATCH_OFF, 256 * 1024);
+}
+
 int main(void)
 {
 	struct sunxi_spif_info info;
@@ -642,6 +864,9 @@ int main(void)
 #endif
 	test_xip();
 	test_xip_edges();
+	test_xip_perf();
+	test_xip_access();
+	test_xip_sweep();
 	test_speed();
 	printk("%s (%d failures)\n", failures == 0 ? "PASS" : "FAIL", failures);
 
