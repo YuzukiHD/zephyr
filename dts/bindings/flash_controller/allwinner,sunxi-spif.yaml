@@ -71,8 +71,10 @@ properties:
 
   dtr-read-opcode:
     type: int
-    default: 0xee
-    description: opcode of the 1-4-4 DTR read (0xee, 0xed on some parts)
+    default: 0
+    description: |
+      opcode of the 1-4-4 DTR read. 0 picks the one that matches the address
+      width: 0xed for 3 byte addresses, 0xee for 4 byte addresses.
 
   dtr-read-dummy:
     type: int

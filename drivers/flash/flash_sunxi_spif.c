@@ -134,6 +134,8 @@ LOG_MODULE_REGISTER(flash_sunxi_spif, CONFIG_FLASH_LOG_LEVEL);
 #define NOR_PP_4B	0x12
 #define NOR_SE_4B	0x21
 #define NOR_FAST_READ_QUAD_4B 0x6c
+#define NOR_READ_DTR_QUAD	0xed
+#define NOR_READ_DTR_QUAD_4B	0xee
 #define NOR_PP_QUAD_4B	0x34
 #define NOR_BE64_4B	0xdc
 
@@ -1146,7 +1148,8 @@ static void spif_dtr_probe(const struct device *dev)
 		LOG_WRN("tune partition holds no usable data, DTR not probed");
 		return;
 	}
-	d->dtr_opcode = cfg->dtr_opcode;
+	d->dtr_opcode = cfg->dtr_opcode != 0U ? cfg->dtr_opcode
+					       : (d->addr_4byte ? NOR_READ_DTR_QUAD_4B : NOR_READ_DTR_QUAD);
 	d->dtr_on = true;
 	for (uint8_t n = first; n <= last; n++) {
 		d->dtr_dummy = n;
@@ -1160,7 +1163,7 @@ static void spif_dtr_probe(const struct device *dev)
 	}
 	d->dtr_on = false;
 	if (!d->dtr_cap) {
-		LOG_WRN("DTR read %02x does not work, using SDR", cfg->dtr_opcode);
+		LOG_WRN("DTR read %02x does not work, using SDR", d->dtr_opcode);
 	}
 }
 
