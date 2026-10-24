@@ -10,6 +10,8 @@
 
 struct dsi_hw {
 	uintptr_t base;
+	/* video runs HSC/HSCEXIT around every burst instead of a continuous clock */
+	bool clk_non_continuous;
 };
 
 /* interrupt numbers for dsi_hw_irq_enable() / dsi_hw_irq_ack() */
@@ -23,6 +25,7 @@ struct dsi_hw_cfg {
 	uint32_t dsi_mode;	/* enum dpy_dsi_mode */
 	uint8_t channel;
 	bool slave;
+	bool clk_non_continuous;
 	uint32_t mod_clk_hz;	/* rate of the DSI module clock */
 };
 
@@ -34,6 +37,7 @@ enum dsi_seq {
 	DSI_SEQ_HS_DATA,	/* data lanes to HS, stream */
 	DSI_SEQ_LP_TX,		/* escape mode LP transmit */
 	DSI_SEQ_LP_RX,		/* LP transmit + bus turnaround */
+	DSI_SEQ_HSTX_CLK_BREAK,	/* stream with the clock started/stopped per burst */
 };
 
 /* -EINVAL when the horizontal blanking cannot hold the sync packets */

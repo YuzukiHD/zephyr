@@ -246,6 +246,7 @@ static void dsi_enc_atomic_enable(struct dpy_encoder *encoder,
 	struct dpy_tcon_output cfg;
 	struct dsi_hw_cfg hw_cfg;
 	uint32_t bpp, pixclk;
+	bool non_cont;
 
 	(void)state;
 	if (!cs || !d)
@@ -254,6 +255,7 @@ static void dsi_enc_atomic_enable(struct dpy_encoder *encoder,
 	bpp = dpy_dsi_format_bpp(d->format);
 	pixclk = cs->mode.clock * 1000;
 	dsi->dsi_mode = dsi_enc_mode(d);
+	non_cont = (d->mode_flags & DPY_DSI_CLOCK_NON_CONTINUOUS) != 0;
 
 	dpy_pins_apply(&dsi->pdata->pins);
 	if (dsi_enc_power_on(dsi))
@@ -280,6 +282,7 @@ static void dsi_enc_atomic_enable(struct dpy_encoder *encoder,
 	hw_cfg.bpp = bpp;
 	hw_cfg.dsi_mode = dsi->dsi_mode;
 	hw_cfg.channel = d->channel;
+	hw_cfg.clk_non_continuous = non_cont;
 	hw_cfg.mod_clk_hz = dpy_os_clk_get_rate(dsi->mod_clk);
 	dsi_hw_config(&dsi->hw, &hw_cfg);
 
@@ -313,6 +316,14 @@ static void dsi_enc_atomic_enable(struct dpy_encoder *encoder,
 	dpy_timing_ctrl_enable(dsi->edev.tc);
 	if (dsi->dsi_mode != DPY_DSI_COMMAND) {
 		dsi_hw_run(&dsi->hw, DSI_SEQ_HS_DATA);
+		/*
+		 * As the vendor SDK does: start the stream, then switch it to
+		 * the clock break sequence when a non-continuous clock is asked
+		 * for.
+		 */
+		if (non_cont) {
+			dsi_hw_run(&dsi->hw, DSI_SEQ_HSTX_CLK_BREAK);
+		}
 		dsi->video_running = true;
 	}
 	dpy_encoder_dev_sink_enable(&dsi->edev);

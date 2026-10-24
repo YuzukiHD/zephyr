@@ -250,6 +250,11 @@ static void dphy_set_timing(struct combo_dphy *phy,
 
 	dphy_update(phy, DPHY_GCTL, DPHY_GCTL_MODULE_EN | DPHY_GCTL_LANE_NUM,
 		    DPY_FIELD_PREP(DPHY_GCTL_LANE_NUM, cfg->lanes - 1));
+	/*
+	 * The clock lane stays in HS over the blanking. Non-continuous mode is
+	 * produced by the DSI instruction sequence (HSC/HSCEXIT every burst),
+	 * not by this bit; the vendor SDK keeps it set in both modes.
+	 */
 	dphy_update(phy, DPHY_TX_CTL, DPHY_TX_HSTX_CLK_CONT,
 		    DPHY_TX_HSTX_CLK_CONT);
 	dphy_write(phy, DPHY_TX_TIME0,

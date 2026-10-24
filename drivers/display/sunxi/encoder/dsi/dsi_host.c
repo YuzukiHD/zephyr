@@ -312,6 +312,7 @@ static void dsi_config_packets(struct dsi_hw *hw, const struct dsi_hw_cfg *cfg)
 
 void dsi_hw_config(struct dsi_hw *hw, const struct dsi_hw_cfg *cfg)
 {
+	hw->clk_non_continuous = cfg->clk_non_continuous;
 	dsi_config_basic(hw, cfg);
 	dsi_config_instructions(hw, cfg);
 	dsi_config_packets(hw, cfg);
@@ -327,7 +328,8 @@ void dsi_hw_disable(struct dsi_hw *hw)
 
 void dsi_hw_run(struct dsi_hw *hw, enum dsi_seq seq)
 {
-	uint32_t jump;
+	uint32_t jump, jump1 = 0;
+	bool jump1_valid = false;
 
 	switch (seq) {
 	case DSI_SEQ_HS_CLOCK:
@@ -359,22 +361,47 @@ void dsi_hw_run(struct dsi_hw *hw, enum dsi_seq seq)
 		       DSI_SLOT(DSI_INST_DLY, DSI_INST_TBA) |
 		       DSI_SLOT(DSI_INST_TBA, DSI_INST_END);
 		break;
+	case DSI_SEQ_HSTX_CLK_BREAK:
+		/*
+		 * The vendor HSTX clock break sequence: start the clock (HSC)
+		 * before each burst and stop it (HSCEXIT) afterwards.
+		 */
+		jump = DSI_SLOT(DSI_INST_LP11, DSI_INST_NOP) |
+		       DSI_SLOT(DSI_INST_NOP, DSI_INST_HSC) |
+		       DSI_SLOT(DSI_INST_HSC, DSI_INST_HSD) |
+		       DSI_SLOT(DSI_INST_HSD, DSI_INST_DLY) |
+		       DSI_SLOT(DSI_INST_DLY, DSI_INST_HSCEXIT) |
+		       DSI_SLOT(DSI_INST_HSCEXIT, DSI_INST_DLY_1);
+		jump1 = DSI_SLOT(DSI_INST_DLY_1 - 8, DSI_INST_NOP_1) |
+			DSI_SLOT(DSI_INST_NOP_1 - 8, DSI_INST_NOP) |
+			DSI_SLOT(DSI_INST_HSCEXIT_1 - 8, DSI_INST_LP11_1) |
+			DSI_SLOT(DSI_INST_LP11_1 - 8, DSI_INST_END);
+		jump1_valid = true;
+		break;
 	default:
 		jump = DSI_SLOT(DSI_INST_LP11, DSI_INST_END);
 		break;
 	}
 	dsi_write(hw, DSI_INST_JUMP_SEL, jump);
+	if (jump1_valid) {
+		dsi_write(hw, DSI_INST_JUMP_SEL1, jump1);
+	}
 	/* a rising edge of INST_ST starts the engine */
 	dsi_update(hw, DSI_BASIC_CTL0, DSI_CTL0_INST_ST, 0);
 	dsi_update(hw, DSI_BASIC_CTL0, DSI_CTL0_INST_ST, DSI_CTL0_INST_ST);
 
 	if (seq == DSI_SEQ_HS_CLOCK) {
-		/* keep the clock lane in HS unless pixel data is plugged */
+		/*
+		 * Keep the clock lane in HS unless pixel data is plugged. The
+		 * clock break sequence needs LP11 to select the clock lane, as
+		 * in the vendor SDK, so enable it there as well.
+		 */
 		bool plug_dis = dsi_read(hw, DSI_PIXEL_CTL0) &
 				DSI_PIXEL_PD_PLUG_DIS;
+		bool cen = hw->clk_non_continuous || !plug_dis;
 
 		dsi_update(hw, DSI_INST_FUNC(DSI_INST_LP11), DSI_INST_LANE_CEN,
-			   plug_dis ? 0 : DSI_INST_LANE_CEN);
+			   cen ? DSI_INST_LANE_CEN : 0);
 	}
 }
 
@@ -392,8 +419,13 @@ void dsi_hw_video_hold(struct dsi_hw *hw, bool hold)
 {
 	dsi_update(hw, DSI_INST_JUMP_CFG(0), DSI_JUMP_CFG_EN,
 		   hold ? DSI_JUMP_CFG_EN : 0);
-	if (!hold)
-		dsi_hw_run(hw, DSI_SEQ_HS_VIDEO);
+	if (!hold) {
+		if (hw->clk_non_continuous) {
+			dsi_hw_run(hw, DSI_SEQ_HSTX_CLK_BREAK);
+		} else {
+			dsi_hw_run(hw, DSI_SEQ_HS_VIDEO);
+		}
+	}
 }
 
 static bool dsi_is_read(uint8_t type)
