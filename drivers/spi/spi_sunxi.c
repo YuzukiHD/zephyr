@@ -190,8 +190,8 @@ static int sunxi_spi_set_clock(const struct sunxi_spi_config *cfg,
 	while (n < 15U && (SPI_MODULE_HZ >> n) > frequency) {
 		n++;
 	}
-	reg = BIT(31) | (n << 8); /* HOSC source, module clock enabled */
-	sys_write32(reg, CCU_BASE + cfg->clock_reg);
+	/* Feed HOSC undivided to the module. SPI_CLK_CTL applies the divider. */
+	sys_write32(BIT(31), CCU_BASE + cfg->clock_reg);
 
 	reg = sunxi_spi_read(cfg, SPI_CLK_CTL);
 	reg &= ~(GENMASK(11, 8) | BIT(12) | GENMASK(7, 0));
