@@ -7,6 +7,7 @@
 #define DT_DRV_COMPAT allwinner_sunxi_spi
 
 #include <errno.h>
+#include <string.h>
 #include <zephyr/device.h>
 #include <zephyr/cache.h>
 #include <zephyr/drivers/clock_control.h>
@@ -423,8 +424,22 @@ static int sunxi_spi_run_transfer(const struct device *dev, bool quad,
 
 	sunxi_spi_set_counters(cfg, quad, tx_len, rx_len);
 	while (deadline++ < SPI_TIMEOUT_US) {
-		while (spi_context_tx_on(ctx) &&
-		       FIELD_GET(FIFO_TX_CNT, sunxi_spi_read(cfg, SPI_FIFO_STA)) < SPI_FIFO_DEPTH) {
+		while (spi_context_tx_on(ctx)) {
+			uint32_t used = FIELD_GET(FIFO_TX_CNT, sunxi_spi_read(cfg, SPI_FIFO_STA));
+
+			if (used >= SPI_FIFO_DEPTH) {
+				break;
+			}
+			if (rx_len == 0U && ctx->tx_len >= 4U && used <= SPI_FIFO_DEPTH - 4U &&
+			    ctx->tx_buf != NULL && IS_ALIGNED(ctx->tx_buf, sizeof(uint32_t))) {
+				uint32_t word;
+
+				memcpy(&word, ctx->tx_buf, sizeof(word));
+				sys_write32(word, cfg->base + SPI_TXDATA);
+				/* Advance four 8-bit frames. */
+				spi_context_update_tx(ctx, 1, sizeof(word));
+				continue;
+			}
 			uint8_t value = spi_context_tx_buf_on(ctx) ? *ctx->tx_buf : 0xffU;
 
 			sys_write8(value, cfg->base + SPI_TXDATA);
